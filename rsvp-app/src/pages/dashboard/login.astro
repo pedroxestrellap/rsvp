@@ -1,0 +1,16 @@
+---
+export const prerender = false;
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import LoginForm from "@/components/dashboard/LoginForm";
+---
+
+<BaseLayout title="Login - Planner">
+  <main class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="w-full max-w-sm bg-white border rounded p-6">
+      <h1 class="text-xl font-bold">Iniciar sesión</h1>
+      <p class="text-sm opacity-70 mt-1">Acceso para wedding planners</p>
+
+      <LoginForm client:load />
+    </div>
+  </main>
+</BaseLayout>

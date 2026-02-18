@@ -1,0 +1,99 @@
+---
+export const prerender = false;
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+const { id } = Astro.params;
+---
+
+<DashboardLayout title="Boda">
+  <div id="app"></div>
+
+  <script type="module">
+    import { requireSessionOrRedirect } from "/src/lib/authClient";
+    import { supabase } from "/src/lib/supabaseClient";
+
+    const weddingId = "${id}";
+    const el = document.getElementById("app");
+
+    await requireSessionOrRedirect();
+
+    // 1) wedding header
+    const { data: wedding, error: wErr } = await supabase
+      .from("weddings")
+      .select("id, title, slug, event_date")
+      .eq("id", weddingId)
+      .maybeSingle();
+
+    if (wErr || !wedding) {
+      el.textContent = wErr?.message || "No encontrado";
+      throw new Error("No wedding");
+    }
+
+    // 2) traer guests ids de esa boda
+    const { data: guests, error: gErr } = await supabase
+      .from("guests")
+      .select("id, is_primary")
+      .eq("wedding_id", weddingId);
+
+    if (gErr) { el.textContent = gErr.message; throw gErr; }
+
+    const guestIds = (guests || []).map(g => g.id);
+
+    // 3) traer rsvps de esos guests
+    let rsvps = [];
+    if (guestIds.length) {
+      const { data, error: rErr } = await supabase
+        .from("rsvps")
+        .select("guest_id, status, seats_confirmed")
+        .in("guest_id", guestIds);
+
+      if (rErr) { el.textContent = rErr.message; throw rErr; }
+      rsvps = data || [];
+    }
+
+    // 4) métricas (solo cuentan primary guest para status; seats_confirmed suma total)
+    const primaryIds = new Set((guests || []).filter(g => g.is_primary).map(g => g.id));
+    const primaryRsvps = rsvps.filter(r => primaryIds.has(r.guest_id));
+
+    const counts = { yes: 0, no: 0, maybe: 0, pending: 0 };
+    let totalPeople = 0;
+
+    for (const r of primaryRsvps) {
+      if (r.status === "yes") counts.yes++;
+      else if (r.status === "no") counts.no++;
+      else if (r.status === "maybe") counts.maybe++;
+      else counts.pending++;
+
+      if (r.status === "yes") totalPeople += Number(r.seats_confirmed || 0);
+    }
+
+    el.innerHTML = `
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold">${wedding.title}</h1>
+          <div class="text-sm opacity-70 mt-1">${wedding.event_date ?? ""} · <a class="underline" href="/i/${wedding.slug}" target="_blank">Abrir invitación</a></div>
+        </div>
+        <a class="underline" href="/dashboard">← Volver</a>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+        ${card("Confirmados", counts.yes)}
+        ${card("No asisten", counts.no)}
+        ${card("Quizás", counts.maybe)}
+        ${card("Personas confirmadas", totalPeople)}
+      </div>
+
+      <div class="mt-6 border rounded bg-white p-4 text-sm opacity-80">
+        Próximo: aquí ponemos la tabla de RSVPs + buscador + export CSV.
+      </div>
+    `;
+
+    function card(label, value) {
+      return `
+        <div class="border rounded bg-white p-4">
+          <div class="text-sm opacity-70">${label}</div>
+          <div class="text-2xl font-bold mt-1">${value}</div>
+        </div>
+      `;
+    }
+  </script>
+</DashboardLayout>

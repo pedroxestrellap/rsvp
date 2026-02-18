@@ -1,0 +1,77 @@
+---
+import { isActivePath } from "../../lib/nav";
+
+type Props = {
+  currentPath: string;
+  workspace?: { name?: string | null; slug?: string | null } | null;
+  sidebarStats?: { published: number; drafts: number; rsvpToday: number } | null;
+};
+
+const { currentPath, workspace = null, sidebarStats = null } = Astro.props;
+
+const links = [
+  { label: "Resumen", href: "/dashboard" },
+  { label: "Bodas", href: "/weddings" },
+  { label: "Invitados", href: "/guests" },
+  { label: "Configuración", href: "/settings" },
+];
+
+function linkClass(active: boolean) {
+  return active
+    ? "block rounded-xl px-4 py-3 text-sm font-semibold text-emerald-900 bg-emerald-50"
+    : "block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50";
+}
+---
+
+<nav class="p-4">
+  <div class="rounded-2xl border border-slate-200 bg-white p-4">
+    <p class="text-xs text-slate-500">Workspace</p>
+    <p class="mt-1 text-base font-semibold text-slate-900">
+      {workspace?.name || "Mi Workspace"}
+    </p>
+    <p class="mt-1 text-sm text-slate-500">
+      {workspace?.slug || "—"}
+    </p>
+  </div>
+
+  <div class="mt-5 space-y-2">
+    {links.map((l) => {
+      const active = isActivePath(currentPath, l.href);
+      return (
+        <a class={linkClass(active)} href={l.href}>
+          {l.label}
+        </a>
+      );
+    })}
+  </div>
+
+  <!-- <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+    <div class="grid grid-cols-3 gap-3 text-xs text-slate-500">
+      <div>
+        <div>Publicadas</div>
+        <div class="mt-1 text-lg font-semibold text-slate-900">
+          {sidebarStats?.published ?? 0}
+        </div>
+      </div>
+      <div>
+        <div>Borradores</div>
+        <div class="mt-1 text-lg font-semibold text-slate-900">
+          {sidebarStats?.drafts ?? 0}
+        </div>
+      </div>
+      <div>
+        <div>RSVP hoy</div>
+        <div class="mt-1 text-lg font-semibold text-slate-900">
+          {sidebarStats?.rsvpToday ?? 0}
+        </div>
+      </div>
+    </div>
+  </div> -->
+
+  <!-- <a
+    href="/weddings/new"
+    class="mt-6 block w-full rounded-2xl bg-emerald-600 px-4 py-4 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+  >
+    + Nueva boda
+  </a> -->
+</nav>

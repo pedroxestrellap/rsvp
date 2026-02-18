@@ -1,0 +1,33 @@
+---
+export const prerender = false;
+
+import { supabase } from "@/lib/supabaseClient";
+const { slug } = Astro.params;
+
+const { data: wedding, error } = await supabase
+  .from("weddings")
+  .select("id, slug, title, event_date, theme_id, settings, is_published")
+  .eq("slug", slug)
+  .eq("is_published", true)
+  .maybeSingle();
+
+if (!wedding) return new Response("Not found", { status: 404 });
+
+const settings = wedding.settings ?? {};
+---
+
+<html>
+  <head>
+    <title>{wedding.title}</title>
+  </head>
+  <body class="p-6">
+    <h1 class="text-3xl font-bold">{wedding.title}</h1>
+    <p class="mt-2">Fecha: {wedding.event_date}</p>
+
+    <div class="mt-6">
+      <a href={`/i/${wedding.slug}/rsvp`} class="underline">Confirmar asistencia (RSVP)</a>
+    </div>
+
+    <pre class="mt-6 text-sm opacity-70">{JSON.stringify(settings, null, 2)}</pre>
+  </body>
+</html>

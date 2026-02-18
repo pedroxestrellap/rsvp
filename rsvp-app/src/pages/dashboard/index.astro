@@ -1,0 +1,33 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import DashboardHome from "@/components/dashboard/DashboardHome";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { getDashboardPageData } from "@/lib/dashboardPageData";
+
+const supabase = supabaseServer(Astro);
+
+// Workspace del usuario
+const { data: memberships, error: mErr } = await supabase
+  .from("workspace_users")
+  .select("workspace_id, workspaces:workspace_id(id,name,slug)")
+  .limit(1);
+
+if (mErr) throw mErr;
+
+const workspace = memberships?.[0]?.workspaces ?? null;
+const workspaceId = memberships?.[0]?.workspace_id ?? null;
+
+const pageData = workspaceId
+  ? await getDashboardPageData(supabase, workspaceId)
+  : { weddings: [], statsByWedding: {}, recentRsvps: [] };
+---
+
+<DashboardLayout title="Dashboard">
+  <DashboardHome
+    client:load
+    initialWorkspace={workspace}
+    initialWeddings={pageData.weddings}
+    initialStatsByWedding={pageData.statsByWedding}
+    initialRecentRsvps={pageData.recentRsvps}
+  />
+</DashboardLayout>

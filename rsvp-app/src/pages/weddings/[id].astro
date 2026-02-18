@@ -1,0 +1,97 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import { supabaseServer } from "../../lib/supabaseServer";
+import { getWeddingById, updateWedding, setWeddingPublished } from "../../lib/weddingsServer";
+
+const supabase = supabaseServer(Astro);
+const { id } = Astro.params;
+
+if (!id) throw new Error("Missing id");
+
+let wedding = await getWeddingById(supabase, id);
+if (!wedding) throw new Error("Wedding not found");
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = String(form.get("action") ?? "");
+
+  if (action === "save") {
+    const title = String(form.get("title") ?? "").trim();
+    const event_date = String(form.get("event_date") ?? "").trim();
+    await updateWedding(supabase, id, {
+        title: title || "Boda sin título",
+        event_date: event_date ? event_date : null,
+        // settings: NO lo mandes si no lo editaste
+    });
+
+  }
+
+  if (action === "publish") {
+    await setWeddingPublished(supabase, id, true);
+  }
+
+  if (action === "unpublish") {
+    await setWeddingPublished(supabase, id, false);
+  }
+
+  return Astro.redirect(`/weddings/${id}`);
+}
+
+wedding = await getWeddingById(supabase, id);
+---
+
+<DashboardLayout title="Boda">
+  <div class="mx-auto max-w-4xl px-6 py-6">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">{wedding?.title ?? "Boda"}</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          {wedding?.slug ? `slug: ${wedding.slug}` : "slug: —"}
+        </p>
+      </div>
+
+      <form method="POST">
+        <input type="hidden" name="action" value={wedding?.is_published ? "unpublish" : "publish"} />
+        <button class={`rounded-xl px-4 py-2 text-sm font-semibold ${
+          wedding?.is_published ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "bg-emerald-600 text-white hover:bg-emerald-700"
+        }`}>
+          {wedding?.is_published ? "Despublicar" : "Publicar"}
+        </button>
+      </form>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="text-sm font-semibold text-slate-900">Información</h2>
+
+      <form method="POST" class="mt-4 grid gap-4">
+        <input type="hidden" name="action" value="save" />
+
+        <div>
+          <label class="text-xs text-slate-500">Título</label>
+          <input name="title" value={wedding?.title ?? ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-500">Fecha</label>
+          <input name="event_date" type="date" value={wedding?.event_date ?? ""} class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+
+        <button class="mt-2 w-fit rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+          Guardar cambios
+        </button>
+      </form>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <a href={`/weddings/${id}/guests`} class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:bg-slate-50">
+        <div class="text-sm font-semibold text-slate-900">Invitados</div>
+        <p class="mt-1 text-sm text-slate-500">Importar, editar, grupos y códigos.</p>
+      </a>
+
+      <a href={`/weddings/${id}/rsvps`} class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:bg-slate-50">
+        <div class="text-sm font-semibold text-slate-900">RSVP</div>
+        <p class="mt-1 text-sm text-slate-500">Respuestas, filtros y seats confirmados.</p>
+      </a>
+    </div>
+  </div>
+</DashboardLayout>

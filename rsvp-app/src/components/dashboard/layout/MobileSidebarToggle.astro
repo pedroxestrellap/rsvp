@@ -1,0 +1,114 @@
+---
+const { currentPath = "" } = Astro.props;
+
+const nav = [
+  { href: "/dashboard", label: "Resumen" },
+  { href: "/weddings", label: "Bodas" },
+  { href: "/guests", label: "Invitados" },
+  { href: "/settings", label: "Configuración" },
+];
+
+const isActive = (href: string) => {
+  if (href === "/dashboard") return currentPath === "/dashboard";
+  return currentPath.startsWith(href);
+};
+---
+
+<!-- Botón hamburguesa (solo mobile) -->
+<button
+  id="openSidebar"
+  class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 lg:hidden"
+  type="button"
+>
+  ☰
+</button>
+
+<!-- Overlay + drawer -->
+<div
+  id="sidebarOverlay"
+  class="fixed inset-0 z-[60] hidden bg-black/50"
+  style="height:100dvh; width:100vw;"
+></div>
+
+
+<aside
+  id="mobileSidebar"
+  class="fixed left-0 top-0 z-[70] hidden h-[100dvh] w-80 border-r border-slate-200 bg-white lg:hidden"
+>
+  <div class="flex h-full flex-col">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <div class="flex items-center gap-3">
+        <div class="grid h-9 w-9 place-items-center rounded-2xl bg-emerald-600 text-white">
+          <span class="text-xs font-semibold">W</span>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-900">Wedding Suite</p>
+          <p class="text-xs text-slate-500">Planner</p>
+        </div>
+      </div>
+
+      <button id="closeSidebar" class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold">
+        ✕
+      </button>
+    </div>
+
+    <div class="px-5 py-4">
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <p class="text-xs text-slate-500">Workspace</p>
+        <p class="mt-1 text-sm font-semibold text-slate-900">Mi Workspace</p>
+        <p class="mt-1 text-xs text-slate-500">mi-workspace-f3ac9d</p>
+      </div>
+    </div>
+
+    <nav class="px-3">
+      <ul class="space-y-1">
+        {nav.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class:list={[
+                "block rounded-xl px-4 py-3 text-sm font-semibold",
+                isActive(item.href) ? "bg-emerald-50 text-emerald-800" : "text-slate-700 hover:bg-slate-50",
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="mt-auto border-t border-slate-200 px-5 py-5">
+      <a
+        href="/weddings/new"
+        class="block w-full rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+      >
+        + Nueva boda
+      </a>
+    </div>
+  </div>
+</aside>
+
+<script>
+  const openBtn = document.getElementById("openSidebar");
+  const closeBtn = document.getElementById("closeSidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  const drawer = document.getElementById("mobileSidebar");
+
+ function open() {
+    document.body.style.overflow = "hidden";
+    overlay?.classList.remove("hidden");
+    drawer?.classList.remove("hidden");
+    }
+
+    function close() {
+    document.body.style.overflow = "";
+    overlay?.classList.add("hidden");
+    drawer?.classList.add("hidden");
+    }
+
+
+  openBtn?.addEventListener("click", open);
+  closeBtn?.addEventListener("click", close);
+  overlay?.addEventListener("click", close);
+</script>

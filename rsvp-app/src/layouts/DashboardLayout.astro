@@ -1,0 +1,30 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import DashboardHeader from "../components/dashboard/layout/DashboardHeader.astro";
+import MobileSidebarDrawer from "../components/dashboard/MobileSidebarDrawer.astro";
+import DesktopSidebar from "../components/dashboard/DesktopSidebar.astro";
+
+import { supabaseServer } from "../lib/supabaseServer"; // ajusta si tu helper se llama distinto
+import { getWorkspaceForUser, getDashboardStats } from "../lib/dashboardData";
+
+const { title = "Dashboard" } = Astro.props;
+
+const currentPath = Astro.url.pathname;
+
+const supabase = supabaseServer(Astro); // ajusta según tu implementación SSR
+const workspace = await getWorkspaceForUser(supabase);
+const sidebarStats = workspace?.id ? await getDashboardStats(supabase, workspace.id) : null;
+---
+
+<BaseLayout title={title}>
+  <MobileSidebarDrawer currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} />
+  <DesktopSidebar currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} />
+
+  <div class="min-h-screen bg-slate-50 lg:pl-72">
+    <DashboardHeader client:load />
+
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
+      <slot />
+    </main>
+  </div>
+</BaseLayout>

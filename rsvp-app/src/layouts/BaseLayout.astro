@@ -1,0 +1,23 @@
+---
+import '../styles/global.css'
+const { title = "Invitación", description = "" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    {description && <meta name="description" content={description} />}
+
+    <title>{title}</title>
+
+    <!-- Aquí luego entran fonts, analytics, etc -->
+  </head>
+
+  <body id="portal-root" class="">
+    <slot />
+  </body>
+</html>

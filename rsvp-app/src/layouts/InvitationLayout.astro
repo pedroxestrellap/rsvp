@@ -1,0 +1,14 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+
+const { weddingTitle } = Astro.props;
+---
+
+<BaseLayout title={weddingTitle}>
+  <main class="min-h-screen flex justify-center">
+    <div class="w-full max-w-3xl px-6 py-10">
+      <slot />
+    </div>
+  </main>
+</BaseLayout>
+

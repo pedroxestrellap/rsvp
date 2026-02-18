@@ -1,0 +1,36 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { listGuestsWithRsvpByWedding } from "@/lib/guestsRsvpsServer";
+import { RsvpManager } from "@/components/rsvps/RsvpManager";
+
+const supabase = supabaseServer(Astro);
+const { id } = Astro.params;
+if (!id) throw new Error("Missing wedding id");
+
+const guests = await listGuestsWithRsvpByWedding(supabase, id);
+---
+
+<DashboardLayout title="RSVP">
+  <div class="mx-auto max-w-6xl px-6 py-6">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">RSVP</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          Agrupado por invitación. Edita status y seats_confirmed.
+        </p>
+      </div>
+
+      <a
+        href={`/weddings/${id}`}
+        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+      >
+        Volver
+      </a>
+    </div>
+
+    <div class="mt-6">
+      <RsvpManager client:load weddingId={id} initialGuests={guests} />
+    </div>
+  </div>
+</DashboardLayout>
