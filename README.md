@@ -1,5 +1,15 @@
 # RSVP App
 
+## Desarrollo local
+
+La aplicación está en la raíz del repositorio `rsvp`. Ejecuta desde ahí:
+
+```sh
+npm run dev
+```
+
+Para generar la versión de producción, ejecuta `npm run build`.
+
 ## Bodas, invitados y acceso para novios
 
 - En `/weddings`, cada boda permite copiar la invitación pública y crear/copiar
