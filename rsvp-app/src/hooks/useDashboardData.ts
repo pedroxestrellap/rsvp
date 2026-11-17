@@ -23,8 +23,8 @@ export function useDashboardData(initial: InitialData = {}) {
 
   const stats = useMemo(() => {
     const totalweddings = weddings.length;
-    const published = weddings.filter((e) => (e.status || "").toLowerCase() === "published").length;
-    const drafts = weddings.filter((e) => (e.status || "").toLowerCase() === "draft").length;
+    const published = weddings.filter((e) => e.is_published).length;
+    const drafts = weddings.filter((e) => !e.is_published).length;
 
     const confirmed = recentRsvps.filter((r) => (r.status || "").toLowerCase() === "confirmed").length;
     const declined = recentRsvps.filter((r) => (r.status || "").toLowerCase() === "declined").length;
@@ -49,7 +49,7 @@ export function useDashboardData(initial: InitialData = {}) {
 
         const { data: wds, error: wErr } = await supabase
           .from("weddings")
-          .select("id, workspace_id, name, date, status, slug, created_at")
+          .select("id, workspace_id, title, event_date, is_published, slug, created_at")
           .eq("workspace_id", memberships[0].workspace_id)
           .order("created_at", { ascending: false })
           .limit(12);

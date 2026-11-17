@@ -7,7 +7,12 @@ export async function getGuestWithRsvp(supabase: SupabaseClient, guestId: string
   .select(`
     id,
     wedding_id,
-    full_name,
+     full_name,
+     phone,
+     email,
+     is_primary,
+     primary_guest_id,
+     group_id,
     max_seats,
     invite_code,
     rsvps (
@@ -17,8 +22,8 @@ export async function getGuestWithRsvp(supabase: SupabaseClient, guestId: string
       updated_at
     )
   `)
-  .eq("wedding_id", id)
-  .order("created_at", { ascending: true });
+  .eq("id", guestId)
+  .maybeSingle();
 
 
   if (error) throw error;
@@ -32,6 +37,7 @@ export async function getGuestGroup(supabase: SupabaseClient, guest: any) {
       .from("guests")
       .select("id, full_name, max_seats, is_primary, primary_guest_id, group_id, invite_code")
       .eq("group_id", guest.group_id)
+      .eq("wedding_id", guest.wedding_id)
       .order("is_primary", { ascending: false });
 
     if (error) throw error;
@@ -46,6 +52,7 @@ export async function getGuestGroup(supabase: SupabaseClient, guest: any) {
     .from("guests")
     .select("id, full_name, max_seats, is_primary, primary_guest_id, group_id, invite_code")
     .or(`id.eq.${primaryId},primary_guest_id.eq.${primaryId}`)
+    .eq("wedding_id", guest.wedding_id)
     .order("is_primary", { ascending: false });
 
   if (error) throw error;

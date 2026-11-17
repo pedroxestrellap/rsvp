@@ -1,21 +1,9 @@
 ---
 import SidebarContent from "./SidebarContent.astro";
-
-const { currentPath, workspace, sidebarStats } = Astro.props;
+import AdminIcon from "../ui/AdminIcon.astro";
+const props=Astro.props;
 ---
-
-<aside class="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-72 lg:flex-col">
-  <div class="h-full border-r border-slate-200 bg-white">
-    <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-      <div class="grid h-10 w-10 place-items-center rounded-full bg-emerald-600 text-white font-semibold">
-        W
-      </div>
-      <div>
-        <div class="text-sm font-semibold text-slate-900">Wedding Suite</div>
-        <div class="text-xs text-slate-500">Planner</div>
-      </div>
-    </div>
-
-    <SidebarContent currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} />
-  </div>
+<aside class="admin-desktop-sidebar">
+  <a class="admin-brand-mark" href={props.mode==="couple"?props.couplePath:"/dashboard"} aria-label="Wedding Suite"><AdminIcon name="heart" /></a>
+  <SidebarContent {...props} />
 </aside>

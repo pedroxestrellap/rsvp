@@ -1,0 +1,141 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import type { InvitationGuest, InvitationRsvp } from "../../types/invitations";
+import { weddingTimestamp, countdownParts } from "../../lib/weddingCountdown";
+import RsvpForm from "./RsvpForm.astro";
+import SedaHeart from "./SedaHeart.astro";
+import SedaFrame from "./SedaFrame.astro";
+import SedaArt from "./SedaArt.astro";
+interface Props { wedding: WeddingRow; rsvpPath: string; declinePath: string; guest?: InvitationGuest | null; rsvp?: InvitationRsvp; }
+const { wedding, guest, rsvp, rsvpPath } = Astro.props;
+const s = wedding.settings ?? {};
+const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
+const safeUrl = (value: unknown) => { try { const url = new URL(text(value)); return ["http:", "https:"].includes(url.protocol) ? url.href : undefined; } catch { return undefined; } };
+const rawDate = wedding.event_date ? new Date(`${wedding.event_date}T12:00:00`) : null;
+const date = rawDate && !Number.isNaN(rawDate.getTime()) ? rawDate : null;
+const printedDate = date?.toLocaleDateString("es", { day: "2-digit", month: "2-digit", year: "numeric" }).replaceAll("/", ".");
+const month = date?.toLocaleDateString("es", { month: "long" });
+const offset = date ? (new Date(date.getFullYear(), date.getMonth(), 1).getDay() + 6) % 7 : 0;
+const days = date ? new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate() : 0;
+const configuredActivities = Array.isArray(s.itinerary) ? s.itinerary.filter((item: any) => item && text(item.title) && /^([01]\d|2[0-3]):[0-5]\d$/.test(text(item.time))) : [];
+const activities = configuredActivities.length ? configuredActivities : [{ prefix: "ceremony", title: "Ceremonia" }, { prefix: "reception", title: "Recepción" }]
+  .filter(({ prefix }) => s[`${prefix}_time`]).map(({ prefix, title }) => ({ title, time: s[`${prefix}_time`], description: s[`${prefix}_venue`] ?? "" }));
+const venues = [{ prefix: "ceremony", title: "Ceremonia" }, { prefix: "reception", title: "Recepción" }]
+  .filter(({ prefix }) => s[`${prefix}_venue`] || s[`${prefix}_address`] || safeUrl(s[`${prefix}_map_url`]));
+const time = [s.ceremony_time, activities[0]?.time, s.reception_time].find(value => /^([01]\d|2[0-3]):[0-5]\d$/.test(text(value))) || "00:00";
+const target = weddingTimestamp(wedding.event_date, time, wedding.timezone || "America/Santo_Domingo");
+const remaining = target !== null ? countdownParts(target) : null;
+const countdownLabels = { days: "días", hours: "horas", minutes: "minutos", seconds: "segundos" };
+const colors = Array.isArray(s.dress_colors) ? s.dress_colors.filter((color: unknown) => typeof color === "string" && /^#[\da-f]{6}$/i.test(color)).slice(0, 12) : [];
+const hasDress = s.dress_code || s.dress_recommendations || s.dress_restrictions || colors.length || safeUrl(s.dress_examples_url);
+const hasGifts = s.gifts || s.gifts_message || s.gifts_label || safeUrl(s.gifts_url);
+---
+<div class="seda-invitation">
+  <header class="seda-hero" data-seda-section="cover">
+    <div class="seda-veil" aria-hidden="true"></div>
+    <SedaArt name="vine" class="seda-vine seda-vine-left" /><SedaArt name="vine" class="seda-vine seda-vine-right" />
+    <p class="seda-wedding-day">El día de nuestra boda</p>
+    <SedaHeart partnerOne={text(s.partner_one)} partnerTwo={text(s.partner_two)} title={wedding.title} date={printedDate} />
+    <div class="seda-hero-flowers" aria-hidden="true"><SedaArt name="bouquet" /><SedaArt name="bouquet" /></div>
+  </header>
+
+  {(s.welcome_message || date) && <section class="seda-welcome-calendar seda-oval-paper" data-seda-section="welcome-calendar" aria-labelledby="seda-welcome-title">
+    <h2 id="seda-welcome-title">Queridos familiares<br />y amigos</h2>
+    {s.welcome_message && <p class="seda-welcome-message">{s.welcome_message}</p>}
+    {date && <div class="seda-calendar" aria-labelledby="seda-calendar-month">
+      <h3 id="seda-calendar-month">{month}</h3><p class="seda-calendar-year">{date.getFullYear()}</p>
+      <table aria-label={`Calendario de ${month} de ${date.getFullYear()}`}>
+        <thead><tr>{["lu", "ma", "mi", "ju", "vi", "sá", "do"].map((day, i) => <th scope="col" abbr={["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][i]}>{day}</th>)}</tr></thead>
+        <tbody>{Array.from({ length: Math.ceil((offset + days) / 7) }, (_, week) => <tr>{Array.from({ length: 7 }, (_, weekday) => {
+          const day = week * 7 + weekday - offset + 1;
+          return <td>{day > 0 && day <= days && (day === date.getDate() ? <time class="seda-calendar-selected" datetime={wedding.event_date!} aria-label={`${day}, día de nuestra boda`}><svg viewBox="0 0 50 50" aria-hidden="true"><path d="M25 14C4-9-7 21 25 43 57 21 46-9 25 14Z" /></svg>{day}</time> : day)}</td>;
+        })}</tr>)}</tbody>
+      </table>
+    </div>}
+  </section>}
+
+  {venues.length > 0 && <section class="seda-locations" data-seda-section="location" aria-labelledby="seda-location-title">
+    <SedaArt name="vine" class="seda-location-vine" />
+    <h2 id="seda-location-title" class="sr-only">Ubicación</h2>
+    {venues.map(({ prefix, title }) => <div class="seda-location-composition">
+      <SedaFrame variant="oval">
+        <h3>{venues.length > 1 ? title : "Ubicación"}</h3>
+        {s[`${prefix}_venue`] && <p class="seda-venue-name">{s[`${prefix}_venue`]}</p>}
+        {s[`${prefix}_address`] && <p class="seda-venue-address">{s[`${prefix}_address`]}</p>}
+        {safeUrl(s[`${prefix}_map_url`]) && <a class="seda-map-link" href={safeUrl(s[`${prefix}_map_url`])} target="_blank" rel="noreferrer" aria-label={`Ver ubicación de la ${title.toLowerCase()}`}>Ver ubicación</a>}
+      </SedaFrame>
+      <SedaArt name="calla-spray" class="seda-location-callas" />
+    </div>)}
+  </section>}
+
+  {activities.length > 0 && <section class="seda-program" data-seda-section="program" aria-labelledby="seda-program-title">
+    <SedaFrame variant="program">
+      <div class="seda-program-paper">
+        <h2 id="seda-program-title">Programa</h2>
+        <ol>{activities.map((activity: any) => <li>
+          <time>{activity.time}</time><h3>{activity.title}</h3>
+          {activity.description && <p>{activity.description}</p>}
+        </li>)}</ol>
+      </div>
+    </SedaFrame>
+    <SedaArt name="calla-spray" class="seda-program-callas" />
+  </section>}
+
+  {hasGifts && <section class="seda-extra-paper seda-oval-paper" data-seda-section="gifts" aria-labelledby="seda-gifts-title">
+    <h2 id="seda-gifts-title">Regalos</h2>
+    {s.gifts_message && <p>{s.gifts_message}</p>}{s.gifts && <p>{s.gifts}</p>}
+    {s.gifts_label && <h3>{s.gifts_label}</h3>}
+    {safeUrl(s.gifts_url) && <a class="invitation-primary" href={safeUrl(s.gifts_url)} target="_blank" rel="noreferrer">Ver mesa de regalos</a>}
+  </section>}
+
+  {hasDress && <section class="seda-extra-paper seda-oval-paper" data-seda-section="dress" aria-labelledby="seda-dress-title">
+    <h2 id="seda-dress-title">Vestimenta</h2>
+    {s.dress_code && <p>{s.dress_code}</p>}{s.dress_recommendations && <p>{s.dress_recommendations}</p>}{s.dress_restrictions && <p>{s.dress_restrictions}</p>}
+    {colors.length > 0 && <ul class="seda-dress-colors" aria-label="Colores de vestimenta elegidos por los novios">{colors.map((color: string) => <li><span style={`--dress-color:${color}`} role="img" aria-label={`Color ${color}`}></span></li>)}</ul>}
+    {safeUrl(s.dress_examples_url) && <a class="invitation-primary" href={safeUrl(s.dress_examples_url)} target="_blank" rel="noreferrer">Ver ejemplos</a>}
+  </section>}
+
+  {(s.additional_information || s.contact_name || s.contact_phone) && <aside class="seda-additional">
+    {s.additional_information && <><h2>Más detalles</h2><p>{s.additional_information}</p></>}
+    {(s.contact_name || s.contact_phone) && <p>{s.contact_name}<br />{s.contact_phone}</p>}
+  </aside>}
+
+  <section class="seda-rsvp seda-oval-paper" data-seda-section="rsvp" aria-labelledby="seda-rsvp-title">
+    <h2 id="seda-rsvp-title">Confirmación</h2>
+    {wedding.rsvp_deadline && <p class="seda-deadline">Confirma antes del {new Date(`${wedding.rsvp_deadline}T12:00:00`).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.</p>}
+    <RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} />
+  </section>
+
+  <footer class="seda-footer" data-seda-section="footer">
+    <p>Con amor,</p><p class="seda-signature">{text(s.footer_signature) || (s.partner_one && s.partner_two ? <>{s.partner_one}<span>&amp;</span>{s.partner_two}</> : wedding.title)}</p>
+    {target !== null && remaining && <div class="seda-countdown-composition" data-seda-section="countdown" data-wedding-countdown={target}>
+      <p class="seda-countdown-caption" data-countdown-caption>{target > Date.now() ? "Para nuestro gran día" : "El gran día ha llegado"}</p>
+      <div class="seda-countdown" role="timer" aria-live="off" aria-label={`${remaining.days} días, ${remaining.hours} horas, ${remaining.minutes} minutos y ${remaining.seconds} segundos`}>
+        {Object.entries(remaining).map(([name, value]) => <div><span class="seda-countdown-number" data-countdown-value={name}>{String(value).padStart(2, "0")}</span><span class="seda-countdown-unit">{countdownLabels[name as keyof typeof countdownLabels]}</span></div>)}
+      </div>
+    </div>}
+    <SedaArt name="urns" class="seda-footer-urns" />
+  </footer>
+</div>
+<script>
+  import { countdownParts } from "../../lib/weddingCountdown";
+  document.querySelectorAll<HTMLElement>("[data-wedding-countdown]").forEach(root => {
+    const target = Number(root.dataset.weddingCountdown);
+    if (!Number.isFinite(target)) return;
+    const update = () => {
+      const remaining = countdownParts(target);
+      for (const [name, value] of Object.entries(remaining)) {
+        const element = root.querySelector(`[data-countdown-value="${name}"]`);
+        if (element) element.textContent = String(value).padStart(2, "0");
+      }
+      root.querySelector("[role=timer]")?.setAttribute("aria-label", `${remaining.days} días, ${remaining.hours} horas, ${remaining.minutes} minutos y ${remaining.seconds} segundos`);
+      if (target <= Date.now()) {
+        const caption = root.querySelector("[data-countdown-caption]");
+        if (caption) caption.textContent = "El gran día ha llegado";
+        return false;
+      }
+      return true;
+    };
+    if (update()) { const timer = window.setInterval(() => { if (!update()) window.clearInterval(timer); }, 1000); }
+  });
+</script>

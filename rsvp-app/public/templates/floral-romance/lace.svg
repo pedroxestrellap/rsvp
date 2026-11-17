@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="72" viewBox="0 0 120 72" fill="none" stroke="#FFFCF6">
+ <defs><pattern id="net" width="6" height="6" patternUnits="userSpaceOnUse"><path d="m0 3 3-3 3 3-3 3Z" stroke-width=".65"/></pattern></defs>
+ <path d="M0 0h120v24c-6 1-8 9-12 13s-11 2-15 5-6 12-13 13-13-4-20-1-13 4-20 1-9-10-13-13-11-1-15-5S6 25 0 24Z" fill="url(#net)" stroke-width="2"/>
+ <path d="M0 9h120M0 14h120M0 20h120" stroke-width="1.5"/>
+ <g stroke-width="1.3"><path d="M60 51C27 46 24 24 36 24c10 0 20 16 24 27ZM60 51c33-5 36-27 24-27-10 0-20 16-24 27ZM60 48c-22-11-22-28-12-28 8 0 12 16 12 28ZM60 48c22-11 22-28 12-28-8 0-12 16-12 28Z"/><path d="M60 46c-9-13-7-25 0-25s9 12 0 25Z"/></g>
+ <g fill="#FFFCF6" stroke="none"><circle cx="60" cy="56" r="2.2"/><circle cx="49" cy="58" r="1.8"/><circle cx="38" cy="56" r="1.8"/><circle cx="28" cy="48" r="1.8"/><circle cx="18" cy="44" r="1.8"/><circle cx="8" cy="36" r="1.8"/><circle cx="71" cy="58" r="1.8"/><circle cx="82" cy="56" r="1.8"/><circle cx="92" cy="48" r="1.8"/><circle cx="102" cy="44" r="1.8"/><circle cx="112" cy="36" r="1.8"/></g>
+</svg>

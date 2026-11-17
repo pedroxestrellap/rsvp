@@ -1,125 +1,22 @@
 ---
-export const prerender = false;
-
 import InvitationLayout from "@/layouts/InvitationLayout.astro";
-import { supabaseServer } from "@/lib/supabaseServer";
-
-
+import RsvpForm from "@/components/invitations/RsvpForm.astro";
+import { weddingAdmin } from "@/lib/weddingAccessServer";
+import { deadlinePassed } from "@/lib/rsvpSubmissionServer";
+import { getInvitationGuest } from "@/lib/invitationGuestServer";
+const supabase = weddingAdmin();
 const { slug } = Astro.params;
-const invite_code = Astro.url.searchParams.get("code") || "";
-
-const { data: wedding, error: weddingErr } = await supabaseServer
-  .from("weddings")
-  .select("id, slug, title, is_published")
-  .eq("slug", slug)
-  .eq("is_published", true)
-  .maybeSingle();
-
-if (weddingErr) console.error(weddingErr);
-if (!wedding) return new Response("Not found", { status: 404 });
-
-let guestName = "";
-let maxSeats = 1;
-
-if (invite_code) {
-  const { data: guest, error: guestErr } = await supabaseServer
-    .from("guests")
-    .select("full_name, max_seats")
-    .eq("invite_code", invite_code)
-    .maybeSingle();
-
-  if (guestErr) console.error(guestErr);
-  guestName = guest?.full_name ?? "";
-  maxSeats = guest?.max_seats ?? 1;
-}
+const code = (Astro.url.searchParams.get("code") ?? "").trim();
+const { data: wedding } = await supabase.from("weddings").select("id, title, slug, theme_id, settings, rsvp_deadline, timezone")
+  .eq("slug", slug).eq("is_published", true).maybeSingle();
+if (!wedding) return new Response("Invitación no encontrada", { status: 404 });
+Astro.response.headers.set("Cache-Control", "no-store");
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+const personal = await getInvitationGuest(supabase, wedding.id, code);
+if (code && !personal) return new Response("El enlace de invitación no es válido. Solicita tu enlace personal a los novios.", { status: 404 });
+const initialStatus = Astro.url.searchParams.get("status") === "declined" ? "declined" : personal?.initialStatus;
+const backPath = `/i/${wedding.slug}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
 ---
-
-<InvitationLayout weddingTitle={`RSVP – ${wedding.title}`}>
-  <h1 class="text-4xl font-bold">RSVP – {wedding.title}</h1>
-
-  <p class="mt-2 opacity-80">
-    {invite_code && guestName
-      ? `Invitación: ${guestName}`
-      : "Escribe tu código para confirmar tu asistencia."}
-  </p>
-
-  <form id="rsvpForm" class="mt-8 grid gap-4 max-w-xl">
-    <label class="grid gap-1">
-      <span class="text-sm">Código</span>
-      <input
-        name="invite_code"
-        value={invite_code}
-        class="border p-2 rounded w-full"
-        required
-      />
-    </label>
-
-    <label class="grid gap-1">
-      <span class="text-sm">¿Asistirás?</span>
-      <select name="status" class="border p-2 rounded w-full">
-        <option value="yes">Sí</option>
-        <option value="no">No</option>
-        <option value="maybe">Quizás</option>
-      </select>
-    </label>
-
-    <label class="grid gap-1">
-      <span class="text-sm">Personas (máx {maxSeats})</span>
-      <input
-        name="seats_confirmed"
-        type="number"
-        min="0"
-        max={maxSeats}
-        value="1"
-        class="border p-2 rounded w-full"
-      />
-    </label>
-
-    <label class="grid gap-1">
-      <span class="text-sm">Restricciones alimentarias (opcional)</span>
-      <input name="dietary" class="border p-2 rounded w-full" />
-    </label>
-
-    <label class="grid gap-1">
-      <span class="text-sm">Mensaje (opcional)</span>
-      <textarea
-        name="message"
-        class="border p-2 rounded w-full"
-        rows="3"
-      ></textarea>
-    </label>
-
-    <button type="submit" class="border px-4 py-2 rounded w-fit">
-      Enviar RSVP
-    </button>
-
-    <p id="result" class="text-sm opacity-80"></p>
-  </form>
-
-  <script>
-    const form = document.getElementById("rsvpForm");
-    const result = document.getElementById("result");
-
-    form?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      result.textContent = "Enviando...";
-
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
-      payload.seats_confirmed = Number(payload.seats_confirmed);
-
-      const res = await fetch("/api/rsvp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-       if (!res.ok) {
-        result.textContent = JSON.stringify(data, null, 2);
-        return;
-        }
-      result.textContent = "¡Listo! Confirmación enviada.";
-    });
-  </script>
+<InvitationLayout weddingTitle={`Confirmar asistencia · ${wedding.title}`} themeId={wedding.theme_id} form>
+  <RsvpForm wedding={wedding} guest={personal?.guest} code={code} companions={personal?.companions} initialStatus={initialStatus} closed={deadlinePassed(wedding)} backPath={backPath} />
 </InvitationLayout>

@@ -1,0 +1,20 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import InvitationDetails from "./InvitationDetails.astro";
+import InvitationActions from "./InvitationActions.astro";
+import RsvpForm from "./RsvpForm.astro";
+import type { InvitationGuest, InvitationRsvp } from "../../types/invitations";
+interface Props { wedding: WeddingRow; rsvpPath: string; declinePath: string; guest?: InvitationGuest | null; rsvp?: InvitationRsvp; }
+const { wedding, rsvpPath, declinePath, guest, rsvp } = Astro.props;
+const settings = wedding.settings ?? {};
+const date = wedding.event_date ? new Date(`${wedding.event_date}T12:00:00`).toLocaleDateString("es", { dateStyle: "long" }) : "";
+---
+<header class="classic-invitation-header">
+  <p class="invitation-eyebrow">Nos casamos</p>
+  <h1>{settings.partner_one && settings.partner_two ? `${settings.partner_one} & ${settings.partner_two}` : wedding.title}</h1>
+  {date && <p class="classic-date">{date}</p>}
+  {settings.welcome_message && <p class="invitation-welcome">{settings.welcome_message}</p>}
+  {!rsvp && <InvitationActions rsvpPath={rsvpPath} declinePath={declinePath} deadline={wedding.rsvp_deadline} />}
+</header>
+<InvitationDetails wedding={wedding} />
+{rsvp && <section class="invitation-note"><h2>Confirma tu asistencia</h2><RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} /></section>}

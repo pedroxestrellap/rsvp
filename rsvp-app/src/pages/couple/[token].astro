@@ -1,0 +1,142 @@
+---
+import AdminFrame from "@/layouts/AdminFrame.astro";
+import AdminIcon from "@/components/ui/AdminIcon.astro";
+import WeddingEditor from "@/components/weddings/WeddingEditor.astro";
+import GuestManager from "@/components/weddings/GuestManager.astro";
+import { getCoupleWedding, isSameOrigin } from "@/lib/weddingAccessServer";
+import { handleGuestAction } from "@/lib/guestManagementServer";
+import { updateWedding, setWeddingPublished } from "@/lib/weddingsServer";
+import { parseWeddingForm } from "@/lib/weddingSettings";
+import { listGuestsWithRsvpByWedding } from "@/lib/guestsRsvpsServer";
+import { guestFilters } from "@/lib/guestList";
+
+Astro.response.headers.set("Cache-Control", "no-store");
+Astro.response.headers.set("Referrer-Policy", "same-origin");
+Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
+const access = await getCoupleWedding(Astro.params.token ?? "");
+if (!access) return new Response("Este enlace no es válido o ha sido renovado. Pide un enlace nuevo a tu wedding planner.", { status: 404 });
+const { wedding, supabase } = access;
+const tabs = [
+  { id: "guests", label: "Invitados" },
+  { id: "information", label: "Información de la boda" },
+  { id: "form", label: "Formulario RSVP" },
+];
+const validTab = (value: string | null) => tabs.some(tab => tab.id === value) ? value! : "guests";
+let activeTab = validTab(Astro.url.searchParams.get("tab"));
+let errorMessage = "";
+let editingGuest = "";
+if (Astro.request.method === "POST") {
+  if (!isSameOrigin(Astro.request, Astro.url)) return new Response("Origen no permitido", { status: 403 });
+  try {
+    const form = await Astro.request.formData();
+    const action = String(form.get("action"));
+    editingGuest = String(form.get("guest_id") ?? "");
+    if (action === "save_wedding") activeTab = validTab(String(form.get("active_tab") ?? activeTab));
+    else if (action !== "publish" && action !== "unpublish") activeTab = "guests";
+    if (action === "save_wedding") await updateWedding(supabase, wedding.id, parseWeddingForm(form, wedding.settings ?? {}));
+    else if (action === "publish" || action === "unpublish") await setWeddingPublished(supabase, wedding.id, action === "publish");
+    else await handleGuestAction(supabase, wedding.id, form);
+    const params = new URLSearchParams({ tab: activeTab, saved: "1" });
+    const filters = guestFilters(Astro.url.searchParams);
+    if (filters.q) params.set("q", filters.q);
+    if (filters.status !== "all") params.set("guest_status", filters.status);
+    if (filters.companions !== "all") params.set("companions", filters.companions);
+    return Astro.redirect(`${Astro.url.pathname}?${params}`, 303);
+  } catch (error) { errorMessage = error instanceof Error ? error.message : "No se pudieron guardar los cambios."; }
+}
+const guests = await listGuestsWithRsvpByWedding(supabase, wedding.id);
+const primary = guests.filter(guest=>guest.is_primary || !guest.primary_guest_id);
+const statusOf = (guest: typeof primary[number]) => (Array.isArray(guest.rsvps)?guest.rsvps[0]:guest.rsvps)?.status ?? "pending";
+const confirmed = primary.filter(guest=>statusOf(guest)==="confirmed").length;
+const pending = primary.filter(guest=>!["confirmed","declined"].includes(statusOf(guest))).length;
+---
+<AdminFrame title={`Nuestra boda · ${wedding.title}`} mode="couple" couplePath={Astro.url.pathname} activeTab={activeTab} workspace={{name:wedding.title}} eventDate={wedding.event_date} summary={[{label:"Invitaciones",value:primary.length},{label:"Confirmadas",value:confirmed},{label:"Pendientes",value:pending}]} progress={{label:"Confirmaciones recibidas",done:confirmed,total:primary.length}}>
+    <div>
+      <header class="couple-overview">
+        <span class="admin-kicker">El espacio de nuestra boda</span>
+        <h1>{wedding.title}</h1>
+        <p>Los detalles, las personas y los momentos que harán único nuestro gran día.</p>
+      </header>
+      {errorMessage && <p class="admin-notice admin-notice-error" data-page-error role="alert">{errorMessage}</p>}
+      {Astro.url.searchParams.has("saved") && !errorMessage && <p class="admin-notice" role="status">Cambios guardados.</p>}
+      <section class="couple-publication">
+        <div><h2>{wedding.is_published?"Su invitación está lista para compartir":"Preparando su invitación"}</h2><p>{wedding.is_published ? "Copia o comparte el enlace personal de cada invitado desde tu lista." : "Completen los detalles y publiquen la boda para compartir sus enlaces personales."}</p></div>
+        <form method="POST"><input type="hidden" name="action" value={wedding.is_published ? "unpublish" : "publish"} /><button class="admin-button admin-button-dark">{wedding.is_published ? "Despublicar" : "Publicar invitación"}</button></form>
+      </section>
+      <div role="tablist" aria-label="Gestionar nuestra boda" class="couple-tabs">
+        {tabs.map(tab => <a
+          id={`tab-${tab.id}`}
+          href={`?tab=${tab.id}`}
+          role="tab"
+          data-couple-tab={tab.id}
+          aria-controls={`panel-${tab.id}`}
+          aria-selected={activeTab === tab.id}
+          tabindex={activeTab === tab.id ? 0 : -1}
+        ><AdminIcon name={tab.id==="guests"?"users":tab.id==="information"?"calendar":"mail"} />{tab.label}</a>)}
+      </div>
+      <div id="panel-guests" role="tabpanel" aria-labelledby="tab-guests" tabindex="0" data-couple-panel="guests" hidden={activeTab !== "guests"}>
+        <GuestManager guests={guests} weddingId={wedding.id} weddingTitle={wedding.title} slug={wedding.slug} compact editingGuest={editingGuest} />
+      </div>
+      <WeddingEditor wedding={wedding} tabbed activeTab={activeTab} />
+    </div>
+  <script>
+    const tabs = [...document.querySelectorAll<HTMLAnchorElement>("[data-couple-tab]")];
+    const panels = [...document.querySelectorAll<HTMLElement>("[data-couple-panel]")];
+    const editor = document.querySelector<HTMLFormElement>("[data-couple-editor]");
+    const activate = (value: string | null, updateHistory = false) => {
+      const selected = tabs.find(tab => tab.dataset.coupleTab === value) ?? tabs[0];
+      if (!selected) return;
+      const name = selected.dataset.coupleTab!;
+      tabs.forEach(tab => {
+        tab.setAttribute("aria-selected", String(tab === selected));
+        tab.tabIndex = tab === selected ? 0 : -1;
+      });
+      document.querySelectorAll<HTMLElement>("[data-couple-nav]").forEach(link=>{
+        const active=link.dataset.coupleNav===name;
+        link.classList.toggle("is-active",active);
+        if(active)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");
+      });
+      panels.forEach(panel => { panel.hidden = panel.dataset.couplePanel !== name; });
+      if (editor) {
+        editor.hidden = name === "guests";
+        const input = editor.elements.namedItem("active_tab") as HTMLInputElement;
+        input.value = name;
+      }
+      if (updateHistory) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", name);
+        url.hash = "";
+        window.history.pushState(null, "", url);
+      }
+    };
+    tabs.forEach((tab, index) => {
+      tab.addEventListener("click", event => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        activate(tab.dataset.coupleTab!, true);
+      });
+      tab.addEventListener("keydown", event => {
+        let next: number;
+        if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+        else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = tabs.length - 1;
+        else if (event.key === " ") next = index;
+        else return;
+        event.preventDefault();
+        tabs[next].focus();
+        activate(tabs[next].dataset.coupleTab!, true);
+      });
+    });
+    document.querySelectorAll<HTMLAnchorElement>("[data-couple-nav]").forEach(link=>link.addEventListener("click",event=>{
+      if(event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
+      event.preventDefault();activate(link.dataset.coupleNav!,true);
+    }));
+    window.addEventListener("popstate", () => activate(new URL(window.location.href).searchParams.get("tab")));
+    // Reveal invalid fields in the other editor tab before native validation focuses them.
+    editor?.addEventListener("invalid", event => {
+      const panel = (event.target as HTMLElement).closest<HTMLElement>("[data-couple-panel]");
+      if (panel) activate(panel.dataset.couplePanel!, true);
+    }, true);
+  </script>
+</AdminFrame>

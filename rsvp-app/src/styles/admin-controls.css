@@ -1,0 +1,10 @@
+.admin-icon { display:block; width:20px; height:20px; flex-shrink:0; }
+.admin-kicker { display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; font-weight:600; color:var(--admin-muted,#6c6870); }
+.admin-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 17px; border-radius:13px; font:600 13px/1.4 "DM Sans",ui-sans-serif,system-ui,sans-serif; text-decoration:none; transition:background .15s,box-shadow .15s; cursor:pointer; }
+.admin-button-dark { color:#fff; background:#242126; border:1px solid #242126; }.admin-button-dark:hover { background:#403942; }
+.admin-button-outline { color:#38333c; border:1px solid #ddd6dd; background:#fff; }.admin-button-outline:hover { background:#f7f3f6; }.admin-button:disabled { opacity:.55; cursor:wait; }
+.admin-icon-button { display:grid; place-items:center; width:40px; height:40px; min-width:40px; border-radius:50%; border:1px solid #e7e0e6; background:#fff; color:#38333c; cursor:pointer; }
+.admin-count { display:inline-grid; place-items:center; min-width:27px; height:27px; padding:0 7px; border-radius:9px; background:#f0eaf2; color:#4c3c58; font-size:12px; font-weight:600; }
+.admin-field { display:flex; flex-direction:column; gap:7px; min-width:0; color:#524c57; font-size:12px; font-weight:500; }
+.admin-field :is(input,select,textarea) { width:100%; min-width:0; min-height:45px; padding:11px 13px; border:1px solid #ded8e0; border-radius:11px; background:#fff; color:#28232e; font:400 14px/1.5 "DM Sans",ui-sans-serif,system-ui,sans-serif; outline-offset:3px; }.admin-field textarea { resize:vertical; }.admin-field input::placeholder { color:#85808a; }.admin-field input[aria-invalid="true"] { border-color:#a73049; background:#fff9fa; }
+.field-optional { font-size:11px; font-weight:400; color:#77707a; }.field-hint { font-size:12px; font-weight:400; line-height:1.5; color:#6c6870; }.field-error { font-size:12px; font-weight:400; color:#9f2141; }

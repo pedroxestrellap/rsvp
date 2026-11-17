@@ -1,0 +1,6 @@
+---
+interface Props { name: "vine" | "bouquet" | "urns" | "calla-spray"; class?: string; }
+const { name, class: className } = Astro.props;
+const viewBoxes = { vine: "0 0 250 760", bouquet: "0 0 500 450", urns: "0 0 700 440", "calla-spray": "0 0 250 380" };
+---
+<svg class:list={["seda-art", className]} viewBox={viewBoxes[name]} fill="none" aria-hidden="true" focusable="false"><use href={`/templates/seda-promesas/botanicals.svg#${name}`} /></svg>

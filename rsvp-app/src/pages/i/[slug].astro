@@ -1,33 +1,22 @@
 ---
-export const prerender = false;
-
-import { supabase } from "@/lib/supabaseClient";
+import InvitationLayout from "@/layouts/InvitationLayout.astro";
+import InvitationView from "@/components/invitations/InvitationView.astro";
+import { weddingAdmin } from "@/lib/weddingAccessServer";
+import { deadlinePassed } from "@/lib/rsvpSubmissionServer";
+import { getInvitationGuest } from "@/lib/invitationGuestServer";
 const { slug } = Astro.params;
-
-const { data: wedding, error } = await supabase
-  .from("weddings")
-  .select("id, slug, title, event_date, theme_id, settings, is_published")
-  .eq("slug", slug)
-  .eq("is_published", true)
-  .maybeSingle();
-
-if (!wedding) return new Response("Not found", { status: 404 });
-
-const settings = wedding.settings ?? {};
+const { data: wedding, error } = await weddingAdmin().from("weddings")
+  .select("id, workspace_id, title, slug, event_date, rsvp_deadline, timezone, theme_id, settings, is_published, created_at")
+  .eq("slug", slug).eq("is_published", true).maybeSingle();
+if (error || !wedding) return new Response("Invitación no encontrada", { status: 404 });
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+const code = (Astro.url.searchParams.get("code") ?? "").trim();
+const rsvpPath = `/i/${wedding.slug}/rsvp${code ? `?code=${encodeURIComponent(code)}` : ""}`;
+const declinePath = `/i/${wedding.slug}/rsvp?status=declined${code ? `&code=${encodeURIComponent(code)}` : ""}`;
+const personal = await getInvitationGuest(weddingAdmin(), wedding.id, code);
+if (code && !personal) return new Response("El enlace de invitación no es válido. Solicita tu enlace personal a los novios.", { status: 404 });
+Astro.response.headers.set("Cache-Control", "no-store");
 ---
-
-<html>
-  <head>
-    <title>{wedding.title}</title>
-  </head>
-  <body class="p-6">
-    <h1 class="text-3xl font-bold">{wedding.title}</h1>
-    <p class="mt-2">Fecha: {wedding.event_date}</p>
-
-    <div class="mt-6">
-      <a href={`/i/${wedding.slug}/rsvp`} class="underline">Confirmar asistencia (RSVP)</a>
-    </div>
-
-    <pre class="mt-6 text-sm opacity-70">{JSON.stringify(settings, null, 2)}</pre>
-  </body>
-</html>
+<InvitationLayout weddingTitle={wedding.title} themeId={wedding.theme_id}>
+  <InvitationView wedding={wedding} rsvpPath={rsvpPath} declinePath={declinePath} guest={personal?.guest} rsvp={{ code, companions: personal?.companions, initialStatus: personal?.initialStatus, closed: deadlinePassed(wedding) }} />
+</InvitationLayout>

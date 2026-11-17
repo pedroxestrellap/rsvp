@@ -28,14 +28,15 @@ export async function getDashboardPageData(supabase: SupabaseClient, workspaceId
   }
 
   // 3) RSVP recientes (opcional, para tu card “RSVP recientes”)
-  const { data: recent, error: rErr } = await supabase
-    .from("rsvps")
-    .select("id, guest_id, status, seats_confirmed, message, dietary, updated_at, created_at")
-    .order("updated_at", { ascending: false })
-    .limit(7);
-
-  // si falla, no rompas el UI
-  const recentRsvps = rErr ? [] : (recent ?? []);
+  let recentRsvps: any[]=[];
+  if(weddingIds.length) {
+    const {data:guests}=await supabase.from("guests").select("id,full_name,wedding_id").in("wedding_id",weddingIds).eq("is_primary",true);
+    if(guests?.length) {
+      const {data:recent,error:rErr}=await supabase.from("rsvps").select("id, guest_id, status, seats_confirmed, message, dietary, updated_at, created_at")
+        .in("guest_id",guests.map(guest=>guest.id)).order("updated_at",{ascending:false}).limit(7);
+      if(!rErr)recentRsvps=(recent??[]).map(row=>({...row,guest_name:guests.find(guest=>guest.id===row.guest_id)?.full_name}));
+    }
+  }
 
   return {
     weddings: weddings ?? [],

@@ -1,206 +1,42 @@
 ---
-import DashboardLayout from "../../../../layouts/DashboardLayout.astro";
-import { supabaseServer } from "../../../../lib/supabaseServer";
-import {
-  listGuestsByWedding,
-  createGuest,
-  updateGuest,
-  deleteGuest,
-} from "../../../../modules/guests";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import GuestManager from "@/components/weddings/GuestManager.astro";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { getPlannerWedding, isSameOrigin } from "@/lib/weddingAccessServer";
+import { handleGuestAction } from "@/lib/guestManagementServer";
+import { listGuestsWithRsvpByWedding } from "@/lib/guestsRsvpsServer";
+import { guestFilters } from "@/lib/guestList";
 
-const supabase = supabaseServer(Astro);
 const { id } = Astro.params;
-if (!id) throw new Error("Missing wedding id");
-
+if (!id) return new Response("Boda no encontrada", { status: 404 });
+const access = await getPlannerWedding(supabaseServer(Astro), id);
+if (!access) return new Response("Boda no encontrada", { status: 404 });
+const { supabase, wedding } = access;
+let errorMessage = "";
 if (Astro.request.method === "POST") {
-  const form = await Astro.request.formData();
-  const action = String(form.get("action") ?? "");
-
-  // CREATE
-  if (action === "create") {
-    const full_name = String(form.get("full_name") ?? "").trim();
-    const phone = String(form.get("phone") ?? "").trim();
-    const email = String(form.get("email") ?? "").trim();
-    const max_seats_raw = String(form.get("max_seats") ?? "").trim();
-
-    await createGuest(supabase, {
-      wedding_id: id,
-      full_name: full_name || null,
-      phone: phone || null,
-      email: email || null,
-      max_seats: max_seats_raw ? Number(max_seats_raw) : null,
-      is_primary: true,
-    });
-
-    return Astro.redirect(`/weddings/${id}/guests`);
-  }
-
-  // UPDATE (inline)
-  if (action === "update") {
-    const guest_id = String(form.get("guest_id") ?? "");
-    if (!guest_id) throw new Error("Missing guest_id");
-
-    const full_name = String(form.get("full_name") ?? "").trim();
-    const phone = String(form.get("phone") ?? "").trim();
-    const email = String(form.get("email") ?? "").trim();
-    const max_seats_raw = String(form.get("max_seats") ?? "").trim();
-
-    await updateGuest(supabase, guest_id, {
-      full_name: full_name || null,
-      phone: phone || null,
-      email: email || null,
-      max_seats: max_seats_raw ? Number(max_seats_raw) : null,
-    });
-
-    return Astro.redirect(`/weddings/${id}/guests`);
-  }
-
-  // DELETE
-  if (action === "delete") {
-    const guest_id = String(form.get("guest_id") ?? "");
-    if (!guest_id) throw new Error("Missing guest_id");
-    await deleteGuest(supabase, guest_id);
-    return Astro.redirect(`/weddings/${id}/guests`);
+  if (!isSameOrigin(Astro.request, Astro.url)) return new Response("Origen no permitido", { status: 403 });
+  try {
+    await handleGuestAction(supabase, id, await Astro.request.formData());
+    const params=new URLSearchParams({saved:"1"});
+    const filters=guestFilters(Astro.url.searchParams);
+    if(filters.q)params.set("q",filters.q);
+    if(filters.status!=="all")params.set("guest_status",filters.status);
+    if(filters.companions!=="all")params.set("companions",filters.companions);
+    return Astro.redirect(`/weddings/${id}/guests?${params}`, 303);
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "No se pudo guardar el invitado.";
   }
 }
-
-const guests = await listGuestsByWedding(supabase, id);
+const guests = await listGuestsWithRsvpByWedding(supabase, id);
 ---
-
-<DashboardLayout title="Invitados">
-  <div class="mx-auto max-w-5xl px-6 py-6">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-semibold text-slate-900">Invitados</h1>
-        <p class="mt-1 text-sm text-slate-500">Agregar, editar y gestionar invitados.</p>
-      </div>
-
-      <a
-        href={`/weddings/${id}`}
-        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-      >
-        Volver
-      </a>
+<DashboardLayout title={`Invitados · ${wedding.title}`}>
+  <div class="mx-auto max-w-5xl space-y-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div><h1 class="text-2xl font-semibold text-slate-900">Invitados</h1><p class="mt-1 text-sm text-slate-500">{wedding.title}</p></div>
+      <a href={`/weddings/${id}`} class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Volver a la boda</a>
     </div>
-
-    <!-- Crear -->
-    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-sm font-semibold text-slate-900">Agregar invitado</h2>
-
-      <form method="POST" class="mt-4 grid gap-3 md:grid-cols-4">
-        <input type="hidden" name="action" value="create" />
-
-        <div class="md:col-span-2">
-          <label class="text-xs text-slate-500">Nombre completo</label>
-          <input
-            name="full_name"
-            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Ej: Juan Pérez"
-            required
-          />
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-500">Teléfono</label>
-          <input
-            name="phone"
-            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Ej: 809..."
-          />
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-500">Email</label>
-          <input
-            name="email"
-            type="email"
-            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="correo@..."
-          />
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-500">Max seats</label>
-          <input
-            name="max_seats"
-            type="number"
-            min="1"
-            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="1"
-          />
-        </div>
-
-        <div class="md:col-span-4">
-          <button class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-            Agregar
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Lista -->
-    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-sm font-semibold text-slate-900">Lista</h2>
-
-      {guests.length === 0 ? (
-        <div class="py-10 text-center text-sm text-slate-500">No hay invitados todavía.</div>
-      ) : (
-        <div class="mt-4 grid gap-3">
-          {guests.map((g) => (
-            <div class="rounded-2xl border border-slate-100 p-4 hover:bg-slate-50">
-              <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                  <div class="text-sm font-semibold text-slate-900">{g.full_name ?? "—"}</div>
-                  <div class="mt-1 text-xs text-slate-500">
-                    {g.phone ? `Tel: ${g.phone}` : "Tel: —"} · {g.email ? `Email: ${g.email}` : "Email: —"}
-                    {g.invite_code ? ` · Code: ${g.invite_code}` : ""}
-                  </div>
-                </div>
-
-                <form method="POST">
-                  <input type="hidden" name="action" value="delete" />
-                  <input type="hidden" name="guest_id" value={g.id} />
-                  <button class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    Eliminar
-                  </button>
-                </form>
-              </div>
-
-              <!-- Edit inline -->
-              <form method="POST" class="mt-4 grid gap-3 md:grid-cols-5">
-                <input type="hidden" name="action" value="update" />
-                <input type="hidden" name="guest_id" value={g.id} />
-
-                <div class="md:col-span-2">
-                  <label class="text-xs text-slate-500">Nombre</label>
-                  <input name="full_name" value={g.full_name ?? ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-500">Teléfono</label>
-                  <input name="phone" value={g.phone ?? ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-500">Email</label>
-                  <input name="email" type="email" value={g.email ?? ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-500">Max seats</label>
-                  <input name="max_seats" type="number" min="1" value={g.max_seats ?? ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-
-                <div class="md:col-span-5">
-                  <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-                    Guardar
-                  </button>
-                </div>
-              </form>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    {errorMessage && <p class="rounded-xl bg-red-50 p-4 text-sm text-red-700" data-page-error role="alert">{errorMessage}</p>}
+    {Astro.url.searchParams.has("saved") && !errorMessage && <p class="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700" role="status">Cambios guardados.</p>}
+    <GuestManager guests={guests} slug={wedding.slug} weddingId={id} weddingTitle={wedding.title} planner compact />
   </div>
 </DashboardLayout>

@@ -9,5 +9,14 @@ export default defineConfig({
   adapter: netlify(),
   output: 'server',
   integrations: [react(), tailwind()],
+  vite: {
+    optimizeDeps: {
+      // Prebundle the auth client before React islands request it.
+      include: ['@supabase/ssr'],
+    },
+    server: {
+      allowedHosts: ['peroratorical-twiggier-marc.ngrok-free.dev'],
+    },
+  },
 
 });

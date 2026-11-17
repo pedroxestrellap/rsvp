@@ -1,9 +1,9 @@
 // src/lib/supabaseServer.ts
 import { createServerClient } from "@supabase/ssr";
 import { parse } from "cookie";
-import type { AstroGlobal } from "astro";
+import type { APIContext } from "astro";
 
-export function supabaseServer(Astro: AstroGlobal) {
+export function supabaseServer(Astro: Pick<APIContext, "request" | "cookies">) {
   const url = import.meta.env.PUBLIC_SUPABASE_URL as string;
   const anon = import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string;
 
@@ -15,7 +15,7 @@ export function supabaseServer(Astro: AstroGlobal) {
       getAll() {
         const cookieHeader = Astro.request.headers.get("cookie") ?? "";
         const parsed = parse(cookieHeader);
-        return Object.entries(parsed).map(([name, value]) => ({ name, value }));
+        return Object.entries(parsed).map(([name, value]) => ({ name, value: value ?? "" }));
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {

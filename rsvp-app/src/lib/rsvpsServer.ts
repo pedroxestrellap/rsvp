@@ -6,6 +6,11 @@ export async function upsertRsvpForGuest(
   guestId: string,
   patch: { status: string; seats_confirmed: number | null }
 ) {
+  if (!["confirmed", "declined", "pending"].includes(patch.status)) throw new Error("Selecciona un estado válido.");
+  const seats = patch.status === "confirmed" ? patch.seats_confirmed : 0;
+  if (seats === null || !Number.isInteger(seats) || seats < (patch.status === "confirmed" ? 1 : 0)) {
+    throw new Error("Indica un número entero de personas (al menos una para confirmar).");
+  }
   // 1) traer max_seats del guest
   const { data: guest, error: gErr } = await supabase
     .from("guests")
@@ -15,13 +20,8 @@ export async function upsertRsvpForGuest(
   if (gErr) throw gErr;
 
   // 2) validar
-  if (typeof patch.seats_confirmed === "number" && typeof guest.max_seats === "number") {
-    if (patch.seats_confirmed > guest.max_seats) {
-      throw new Error(`Seats confirmados (${patch.seats_confirmed}) exceden el max (${guest.max_seats}).`);
-    }
-    if (patch.seats_confirmed < 0) {
-      throw new Error("Seats confirmados no puede ser negativo.");
-    }
+  if (seats > (guest.max_seats ?? 1)) {
+    throw new Error(`Las personas confirmadas (${seats}) exceden el cupo (${guest.max_seats ?? 1}).`);
   }
 
   // 3) upsert rsvp (si no existe, lo crea)
@@ -31,7 +31,7 @@ export async function upsertRsvpForGuest(
       {
         guest_id: guestId,
         status: patch.status,
-        seats_confirmed: patch.seats_confirmed,
+          seats_confirmed: seats,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "guest_id" }

@@ -1,0 +1,9 @@
+---
+interface Props { rsvpPath: string; declinePath: string; deadline?: string | null; }
+const { rsvpPath, declinePath, deadline } = Astro.props;
+---
+<div class="invitation-actions">
+  <a href={rsvpPath} class="invitation-primary">Confirmar asistencia</a>
+  <a href={declinePath} class="invitation-secondary">No asistiré</a>
+</div>
+{deadline && <p class="invitation-deadline">Confirma antes del {new Date(`${deadline}T12:00:00`).toLocaleDateString("es", { dateStyle: "long" })}</p>}

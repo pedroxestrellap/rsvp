@@ -1,0 +1,45 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import { weddingFields, getRsvpSettings } from "../../lib/weddingSettings";
+interface Props { wedding: WeddingRow; tabbed?: boolean; activeTab?: string; }
+const { wedding, tabbed = false, activeTab = "information" } = Astro.props;
+const settings = wedding.settings ?? {};
+const rsvp = getRsvpSettings(settings);
+const inputClass = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900";
+---
+<form method="POST" class="grid gap-6" data-couple-editor={tabbed ? "" : undefined} hidden={tabbed && activeTab === "guests"}>
+  <input type="hidden" name="action" value="save_wedding" />
+  {tabbed && <input type="hidden" name="active_tab" value={activeTab} />}
+  <section id={tabbed ? "panel-information" : "information"} data-couple-panel={tabbed ? "information" : undefined} role={tabbed ? "tabpanel" : undefined} aria-labelledby={tabbed ? "tab-information" : undefined} tabindex={tabbed ? 0 : undefined} hidden={tabbed && activeTab !== "information"} class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-slate-900">Información de la boda</h2>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+      <label class="text-sm text-slate-600 sm:col-span-2">Título de la invitación<input name="title" value={wedding.title ?? ""} class={inputClass} required maxlength="200" /></label>
+      <label class="text-sm text-slate-600">Fecha de la boda<input name="event_date" type="date" value={wedding.event_date ?? ""} class={inputClass} /></label>
+      <label class="text-sm text-slate-600">Fecha límite para confirmar<input name="rsvp_deadline" type="date" value={wedding.rsvp_deadline ?? ""} class={inputClass} /></label>
+      {weddingFields.map(field => <label class="text-sm text-slate-600">{field.label}<input name={field.name} type={"type" in field ? field.type : "text"} value={settings[field.name] ?? ""} class={inputClass} maxlength="2000" /></label>)}
+      <label class="text-sm text-slate-600 sm:col-span-2">Mensaje de bienvenida<textarea name="welcome_message" rows={3} class={inputClass} maxlength="5000">{settings.welcome_message ?? ""}</textarea></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Itinerario (una actividad por línea)<textarea name="itinerary" rows={5} class={inputClass} maxlength="10000" aria-describedby="itinerary-help">{Array.isArray(settings.itinerary) ? settings.itinerary.map((item: any) => `${item.time} | ${item.title} | ${item.description ?? ""}`).join("\n") : ""}</textarea><span id="itinerary-help" class="mt-1 block text-xs text-slate-500">Formato: HH:MM | Nombre | Descripción. Se respeta este orden, también después de medianoche. Si lo dejas vacío, se usarán los horarios de ceremonia y recepción.</span></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Mensaje para la mesa de regalos<textarea name="gifts_message" rows={2} class={inputClass} maxlength="5000">{settings.gifts_message ?? ""}</textarea></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Regalos o lista de bodas<textarea name="gifts" rows={3} class={inputClass} maxlength="5000">{settings.gifts ?? ""}</textarea></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Recomendaciones de vestimenta<textarea name="dress_recommendations" rows={3} class={inputClass} maxlength="5000">{settings.dress_recommendations ?? ""}</textarea></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Restricciones de vestimenta<textarea name="dress_restrictions" rows={3} class={inputClass} maxlength="5000">{settings.dress_restrictions ?? ""}</textarea></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Colores de vestimenta (opcional)<input name="dress_colors" value={Array.isArray(settings.dress_colors) ? settings.dress_colors.join(", ") : ""} class={inputClass} maxlength="200" aria-describedby="dress-colors-help" /><span id="dress-colors-help" class="mt-1 block text-xs text-slate-500">Códigos #RRGGBB separados por comas. Solo se mostrarán los colores que elijas para esta boda.</span></label>
+      <label class="text-sm text-slate-600 sm:col-span-2">Información adicional (transporte, alojamiento, itinerario…)<textarea name="additional_information" rows={4} class={inputClass} maxlength="5000">{settings.additional_information ?? ""}</textarea></label>
+    </div>
+  </section>
+  <section id={tabbed ? "panel-form" : "form"} data-couple-panel={tabbed ? "form" : undefined} role={tabbed ? "tabpanel" : undefined} aria-labelledby={tabbed ? "tab-form" : undefined} tabindex={tabbed ? 0 : undefined} hidden={tabbed && activeTab !== "form"} class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-slate-900">Formulario de confirmación</h2>
+    <p class="mt-1 text-sm text-slate-500">Personaliza lo que verán los invitados al confirmar su asistencia.</p>
+    <div class="mt-4 grid gap-4">
+      <label class="text-sm text-slate-600">Texto de introducción<textarea name="form_intro" rows={3} class={inputClass} maxlength="2000">{rsvp.intro}</textarea></label>
+      <input type="hidden" name="submit_label" value={rsvp.submit_label} />
+      <p class="text-sm text-slate-500">Cada invitado recibe su enlace personal y responde con Asistir o No asistir. Si tiene acompañantes, confirma con las casillas quiénes irán.</p>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="show_dietary" checked={rsvp.show_dietary} /> Preguntar por restricciones alimentarias</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="show_message" checked={rsvp.show_message} /> Permitir un mensaje para los novios</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="ask_companion_names" checked={rsvp.ask_companion_names} /> Pedir nombres de acompañantes</label>
+      <label class="text-sm text-slate-600">Preguntas adicionales (una por línea, hasta 10)<textarea name="custom_questions" rows={4} class={inputClass} maxlength="2000" placeholder="¿Necesitas transporte?">{rsvp.custom_questions.join("\n")}</textarea></label>
+      <p class="text-xs text-slate-500">Las preguntas adicionales son opcionales. Sus respuestas se guardan junto al mensaje del RSVP.</p>
+    </div>
+  </section>
+  <button class="w-fit rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">Guardar información y formulario</button>
+</form>

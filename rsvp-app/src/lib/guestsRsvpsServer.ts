@@ -1,18 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { guestSelect } from "../modules/guests/queries";
+import type { GuestRow } from "../modules/guests/types";
+
+type GuestRsvp = { id: string; status: string; seats_confirmed: number; dietary: string | null; message: string | null; updated_at: string; created_at: string };
+export type GuestWithRsvp = GuestRow & { rsvps: GuestRsvp[] | GuestRsvp | null };
 
 export async function listGuestsWithRsvpByWedding(supabase: SupabaseClient, weddingId: string) {
   const { data, error } = await supabase
     .from("guests")
     .select(`
-      id,
-      wedding_id,
-      full_name,
-      max_seats,
-      is_primary,
-      primary_guest_id,
-      group_id,
-      invite_code,
-      created_at,
+      ${guestSelect},
       rsvps (
         id,
         status,
@@ -28,5 +25,5 @@ export async function listGuestsWithRsvpByWedding(supabase: SupabaseClient, wedd
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as GuestWithRsvp[];
 }

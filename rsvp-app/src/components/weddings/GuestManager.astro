@@ -1,0 +1,86 @@
+---
+import type { GuestRow } from "../../modules/guests/types";
+import CopyLink from "./CopyLink.astro";
+import GuestCreateDialog from "./GuestCreateDialog.astro";
+import AdminIcon from "../ui/AdminIcon.astro";
+import { guestFilters, matchesGuest, normalizeGuestSearch } from "../../lib/guestList";
+import { formatGuestPhone } from "../../lib/guestForm";
+import "../../styles/guest-manager.css";
+interface Props { guests: (GuestRow & { rsvps?: { status: string }[] | { status: string } | null })[]; slug: string | null; weddingId: string; weddingTitle?: string | null; planner?: boolean; compact?: boolean; editingGuest?: string; }
+const { guests, slug, weddingId, weddingTitle = "Nuestra boda", planner = false, compact = false, editingGuest = "" } = Astro.props;
+const primary = guests.filter(g => g.is_primary || !g.primary_guest_id);
+const filters = guestFilters(Astro.url.searchParams);
+const rows = primary.map(g => {
+  const companions = guests.filter(c => c.primary_guest_id === g.id).map(c => {
+    const response = Array.isArray(c.rsvps) ? c.rsvps[0] : c.rsvps;
+    return { ...c, attendance: response?.status === "confirmed" ? "Asiste" : response?.status === "declined" ? "No asiste" : "Pendiente" };
+  });
+  const rsvp = Array.isArray(g.rsvps) ? g.rsvps[0] : g.rsvps;
+  const status = ["confirmed", "declined"].includes(rsvp?.status ?? "") ? rsvp!.status : "pending";
+  const search = normalizeGuestSearch([g.full_name, g.phone, g.email, ...companions.map(c => c.full_name)].filter(Boolean).join(" "));
+  const hasCompanions = (g.max_seats ?? 1) > 1 || companions.length > 0;
+  return { g, companions, status, search, hasCompanions, visible: matchesGuest(search, status, hasCompanions, filters) };
+});
+const confirmed = rows.filter(row=>row.status === "confirmed").length;
+const initials = (name: string | null) => (name ?? "").split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+---
+<section id="guests" class:list={["guest-manager",compact && "guest-manager-compact"]} data-guest-manager data-wedding-title={weddingTitle}>
+  <div class="guest-manager-heading"><div><span class="admin-kicker">Cada persona cuenta</span><h2>Tu lista de invitados<span class="admin-count">{primary.length}</span></h2><p>Organiza sus lugares y comparte una invitación única con cada persona.</p></div><button type="button" class="admin-button admin-button-dark" data-open-guest-dialog aria-haspopup="dialog" aria-controls="guest-create-dialog"><AdminIcon name="plus" />Agregar invitado</button></div>
+  <div class="guest-summary-grid" aria-label="Resumen de invitados">
+    <div class="guest-summary guest-summary-pink"><span>Invitaciones</span><strong>{primary.length}</strong><AdminIcon name="mail" /></div>
+    <div class="guest-summary guest-summary-lavender"><span>Confirmadas</span><strong>{confirmed}</strong><AdminIcon name="check" /></div>
+    <div class="guest-summary guest-summary-sage"><span>Lugares reservados</span><strong>{primary.reduce((total,g)=>total+(g.max_seats ?? 1),0)}</strong><AdminIcon name="users" /></div>
+  </div>
+  <div class="guest-filters">
+    <label class="admin-field guest-search-field">Buscar invitados<div><AdminIcon name="search" /><input data-guest-search type="search" value={filters.q} placeholder="Nombre, email o teléfono" /></div></label>
+    <label class="admin-field">Respuesta RSVP<select data-guest-status>{[["all", "Todos los estados"], ["pending", "Pendientes"], ["confirmed", "Confirmados"], ["declined", "No asisten"]].map(([value,label])=><option value={value} selected={filters.status === value}>{label}</option>)}</select></label>
+    <label class="admin-field">Acompañantes<select data-guest-companions>{[["all", "Todas las invitaciones"], ["with", "Con acompañantes"], ["without", "Sin acompañantes"]].map(([value,label])=><option value={value} selected={filters.companions === value}>{label}</option>)}</select></label>
+  </div>
+  <div class="guest-selection-heading"><label><input type="checkbox" data-select-visible />Seleccionar todos los visibles</label><p data-guest-count role="status">Mostrando {rows.filter(row=>row.visible).length} de {primary.length} invitaciones</p><button type="button" class="guest-text-button" data-select-all hidden>Seleccionar toda la lista ({primary.length})</button></div>
+  <div class="guest-bulk-actions" data-bulk-actions hidden>
+    <strong data-selection-count></strong><div><button type="button" class="admin-button admin-button-outline" data-bulk-copy>Copiar enlaces</button><button type="button" class="admin-button admin-button-dark" data-bulk-share><AdminIcon name="share" />Compartir</button><button type="button" class="guest-text-button" data-clear-selection>Limpiar selección</button></div>
+  </div>
+  <p class="guest-action-status" data-guest-action-status role="status" hidden></p>
+  {primary.length === 0 && <div class="guest-list-empty"><AdminIcon name="users" /><h3>Tu lista empieza con alguien especial</h3><p>Agrega tu primer invitado para preparar su enlace personal.</p><button type="button" class="admin-button admin-button-dark" data-open-guest-dialog>Agregar primer invitado</button></div>}
+  <div class="guest-list" hidden={!rows.some(row=>row.visible)} data-guest-list>
+    {rows.map(({g,companions,status,search,hasCompanions,visible},index)=>{
+      const path = slug && g.invite_code ? `/i/${slug}?code=${encodeURIComponent(g.invite_code)}` : null;
+      const url = path ? new URL(path,Astro.url.origin).href : "";
+      return <article class="guest-row" data-guest-row data-guest-id={g.id} data-guest-name={g.full_name} data-guest-phone={g.phone ?? ""} data-guest-email={g.email ?? ""} data-invitation-url={url} data-search={search} data-status={status} data-has-companions={String(hasCompanions)} hidden={!visible}>
+        <div class="guest-row-heading"><label class="guest-row-select"><input type="checkbox" data-select-guest aria-label={`Seleccionar a ${g.full_name}`} /></label><span class={`guest-avatar guest-avatar-${index%4}`} aria-hidden="true">{initials(g.full_name)}</span><div class="guest-row-name"><h3>{g.full_name}</h3><p>{g.max_seats ?? 1} {(g.max_seats ?? 1) === 1 ? "lugar reservado" : "lugares reservados"}{hasCompanions && ` · ${companions.length} ${companions.length===1?"acompañante":"acompañantes"} con nombre`}</p>{(g.phone || g.email) && <p class="guest-row-contact">{[g.phone?formatGuestPhone(g.phone):null,g.email].filter(Boolean).join(" · ")}</p>}</div><span class={`guest-status guest-status-${status}`}>{status === "confirmed" ? "Confirmado" : status === "declined" ? "No asiste" : "Pendiente"}</span></div>
+        <div class="guest-row-actions" data-guest-invitation>
+          {path && <CopyLink path={path} label="Copiar invitación" />}
+          {slug && !g.invite_code && <form method="POST" data-create-and-copy-invitation><input type="hidden" name="action" value="create_invite_code" /><input type="hidden" name="guest_id" value={g.id} /><button class="admin-button admin-button-outline">Copiar invitación</button></form>}
+          {slug && <button type="button" class="admin-button admin-button-outline" data-share-invitation data-share-url={url}><AdminIcon name="share" />Compartir</button>}
+          {!slug && <p>Guarda el enlace de la boda para compartir las invitaciones.</p>}
+        </div>
+        <details class="guest-edit" open={editingGuest === g.id || companions.some(c=>c.id===editingGuest)}>
+          <summary>Editar<span class="sr-only"> a {g.full_name}</span></summary>
+          <div class="guest-edit-content">
+            {planner && <a href={`/weddings/${weddingId}/guests/${g.id}`} class="guest-text-button">Ver RSVP</a>}
+            <form method="POST" class="guest-edit-form" data-guest-edit-form>
+              <input type="hidden" name="action" value="update_guest" /><input type="hidden" name="guest_id" value={g.id} />
+              <label class="admin-field">Nombre completo<input name="full_name" value={g.full_name ?? ""} required maxlength="200" autocomplete="name" /><span class="field-error" data-field-error hidden></span></label>
+              <label class="admin-field">Acompañantes permitidos<input name="companions" type="number" min={companions.length} max="99" value={Math.max(0,(g.max_seats ?? 1)-1)} required /><span class="field-hint">Además del invitado principal.</span></label>
+              <label class="admin-field">Teléfono<input name="phone" type="tel" value={g.phone ?? ""} maxlength="30" autocomplete="tel" inputmode="tel" placeholder="+1 809 555 0123" /><span class="field-error" data-field-error hidden></span></label>
+              <label class="admin-field">Email<input name="email" type="email" value={g.email ?? ""} maxlength="254" autocomplete="email" /><span class="field-error" data-field-error hidden></span></label>
+              <button class="admin-button admin-button-dark">Guardar invitado</button>
+            </form>
+            <h4>Acompañantes</h4>
+            <div class="guest-existing-companions">{companions.map(c=><div class="guest-existing-companion"><span class="guest-status">{c.attendance}</span><form method="POST"><input type="hidden" name="action" value="update_guest" /><input type="hidden" name="guest_id" value={c.id} /><input type="hidden" name="phone" value={c.phone ?? ""} /><input type="hidden" name="email" value={c.email ?? ""} /><label class="admin-field"><span class="sr-only">Nombre del acompañante</span><input name="full_name" value={c.full_name ?? ""} required maxlength="200" /></label><button class="admin-button admin-button-outline">Guardar nombre</button></form><form method="POST" data-delete-guest><input type="hidden" name="action" value="delete_guest" /><input type="hidden" name="guest_id" value={c.id} /><button class="guest-danger-button">Eliminar acompañante</button></form></div>)}</div>
+            <form method="POST" class="guest-add-existing-companion"><input type="hidden" name="action" value="add_companion" /><input type="hidden" name="guest_id" value={g.id} /><label class="admin-field"><span class="sr-only">Añadir acompañante de {g.full_name}</span><input name="full_name" placeholder="Nombre del acompañante" required maxlength="200" /></label><button class="admin-button admin-button-outline">Añadir acompañante</button></form>
+            <p class="field-hint">Si hace falta, añadir un acompañante amplía el cupo de esta invitación.</p>
+            <form method="POST" data-delete-guest class="guest-delete-form"><input type="hidden" name="action" value="delete_guest" /><input type="hidden" name="guest_id" value={g.id} /><button class="guest-danger-button">Eliminar invitado</button></form>
+          </div>
+        </details>
+      </article>;
+    })}
+  </div>
+  <div class="guest-list-empty" data-guest-empty hidden={rows.some(row=>row.visible) || primary.length===0}><AdminIcon name="search" /><h3>No encontramos coincidencias</h3><p>Prueba con otro nombre o cambia los filtros.</p></div>
+  <GuestCreateDialog />
+  <dialog class="guest-share-dialog" data-share-dialog aria-labelledby="guest-share-title"><div class="guest-dialog-heading"><div><span class="admin-kicker">Un enlace que los reúne</span><h2 id="guest-share-title">Compartir invitación</h2><p data-share-description></p></div><button type="button" class="admin-icon-button" data-close-share aria-label="Cerrar opciones de compartir"><AdminIcon name="close" /></button></div><div class="guest-share-options"><a class="admin-button admin-button-dark" data-share-whatsapp target="_blank" rel="noreferrer">Enviar por WhatsApp</a><a class="admin-button admin-button-outline" data-share-email>Enviar por email</a></div><label class="admin-field">Mensaje de invitación<textarea data-share-text rows={6} readonly></textarea></label><button type="button" class="admin-button admin-button-outline" data-copy-share-text>Copiar mensaje</button><p data-share-status role="status"></p></dialog>
+</section>
+<script>
+  import "../../lib/copyLinkClient";
+  import "../../lib/guestManagerClient";
+</script>

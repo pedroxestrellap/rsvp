@@ -16,13 +16,13 @@ export async function getDashboardStats(supabase: SupabaseClient, workspaceId: s
   // Events
   const { data: evs } = await supabase
     .from("weddings")
-    .select("id,status,created_at")
+    .select("id,is_published,created_at")
     .eq("workspace_id", workspaceId);
 
-  const events = (evs || []) as Array<{ status?: string | null }>;
+  const events = (evs || []) as Array<{ id:string; is_published?: boolean | null }>;
 
-  const published = events.filter(e => (e.status || "").toLowerCase() === "published").length;
-  const drafts = events.filter(e => (e.status || "").toLowerCase() === "draft").length;
+  const published = events.filter(e => e.is_published).length;
+  const drafts = events.length-published;
 
   // RSVPs de hoy (si existe tabla y campo updated_at)
   const start = new Date();
@@ -31,9 +31,13 @@ export async function getDashboardStats(supabase: SupabaseClient, workspaceId: s
 
   let rsvpToday = 0;
   try {
+    if(!events.length)return {published,drafts,rsvpToday};
+    const {data:guests}=await supabase.from("guests").select("id").in("wedding_id",events.map(event=>event.id)).eq("is_primary",true);
+    if(!guests?.length)return {published,drafts,rsvpToday};
     const { data: rsvps } = await supabase
       .from("rsvps")
       .select("id,updated_at")
+      .in("guest_id",guests.map(guest=>guest.id))
       .gte("updated_at", isoStart);
 
     rsvpToday = (rsvps || []).length;

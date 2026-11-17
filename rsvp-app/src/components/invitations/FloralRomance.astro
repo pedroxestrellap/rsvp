@@ -1,0 +1,172 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import InvitationActions from "./InvitationActions.astro";
+import FloralArt from "./FloralArt.astro";
+import FloralLaceFrame from "./FloralLaceFrame.astro";
+import RsvpForm from "./RsvpForm.astro";
+import type { InvitationGuest, InvitationRsvp } from "../../types/invitations";
+interface Props {
+  wedding: WeddingRow; rsvpPath: string; declinePath: string;
+  guest?: InvitationGuest | null;
+  rsvp?: InvitationRsvp;
+}
+const { wedding, rsvpPath, declinePath, guest, rsvp } = Astro.props;
+const s = wedding.settings ?? {};
+const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
+const safeUrl = (value: unknown) => {
+  try { const url = new URL(text(value)); return ["https:", "http:"].includes(url.protocol) ? url.href : undefined; } catch { return undefined; }
+};
+const eventDate = wedding.event_date ? new Date(`${wedding.event_date}T12:00:00`) : null;
+const validDate = eventDate && !Number.isNaN(eventDate.getTime()) ? eventDate : null;
+const date = validDate?.toLocaleDateString("es", { day: "2-digit", month: "2-digit", year: "numeric" });
+const month = validDate?.toLocaleDateString("es", { month: "long" });
+const calendarOffset = validDate ? (new Date(validDate.getFullYear(), validDate.getMonth(), 1).getDay() + 6) % 7 : 0;
+const daysInMonth = validDate ? new Date(validDate.getFullYear(), validDate.getMonth() + 1, 0).getDate() : 0;
+const initials = s.partner_one && s.partner_two ? `${text(s.partner_one).charAt(0)} & ${text(s.partner_two).charAt(0)}` : text(wedding.title).charAt(0);
+const photo = safeUrl(s.main_photo_url);
+const locations = [{ prefix: "ceremony", title: "Ceremonia" }, { prefix: "reception", title: "Recepción" }]
+  .filter(({ prefix }) => s[`${prefix}_venue`] || s[`${prefix}_address`] || safeUrl(s[`${prefix}_map_url`]));
+const configuredActivities = Array.isArray(s.itinerary) ? s.itinerary.filter((item: any) => item && text(item.title) && /^([01]\d|2[0-3]):[0-5]\d$/.test(text(item.time))) : [];
+const activities = configuredActivities.length ? configuredActivities : [{ prefix: "ceremony", title: "Ceremonia" }, { prefix: "reception", title: "Recepción" }]
+  .filter(({ prefix }) => s[`${prefix}_time`]).map(({ prefix, title }) => ({ title, time: s[`${prefix}_time`], description: s[`${prefix}_venue`] ?? "" }));
+const activityArt = (title: string) => {
+  if (/ceremon|anillo|votos/i.test(title)) return "rings";
+  if (/cena|comida|banquete/i.test(title)) return "dinner";
+  if (/pastel|tarta|postre/i.test(title)) return "cake";
+  if (/recep|brindis|c[oó]ctel|fiesta/i.test(title)) return "toast";
+  return "flowers";
+};
+const dressColors = Array.isArray(s.dress_colors) ? s.dress_colors.filter((color: unknown) => typeof color === "string" && /^#[\da-f]{6}$/i.test(color)).slice(0, 12) : [];
+const hasDress = s.dress_code || s.dress_recommendations || s.dress_restrictions || dressColors.length || safeUrl(s.dress_examples_url);
+const hasGifts = s.gifts || s.gifts_message || s.gifts_label || safeUrl(s.gifts_url);
+---
+<details class="floral-envelope" data-floral-envelope>
+  <summary class="envelope-stage" aria-label="Presiona el sobre para abrirlo">
+    <span class="envelope-object" aria-hidden="true">
+      <span class="envelope-paper"></span>
+      <span class="envelope-side envelope-side-left"></span><span class="envelope-side envelope-side-right"></span>
+      <span class="envelope-flap"></span>
+      <span class="envelope-lace envelope-lace-left"></span><span class="envelope-lace envelope-lace-right"></span>
+      <span class="envelope-monogram"><FloralArt name="ornament" /><strong>{initials}</strong><FloralArt name="ornament" /></span>
+      <span class="wax-seal"><FloralArt name="seal" /></span>
+      <span class="envelope-open-label">Presiona el sobre<br />para abrirlo</span>
+    </span>
+  </summary>
+  <div class="floral-letter">
+    <header class="floral-hero" data-floral-section="cover">
+      <p class="floral-announcement">Nos casamos</p>
+      {validDate && <p class="floral-date"><time datetime={wedding.event_date!}>{date?.replaceAll("/", " | ")}</time></p>}
+      <h1 tabindex="-1" data-invitation-title>{s.partner_one && s.partner_two ? <>{s.partner_one}<em>&amp;</em>{s.partner_two}</> : wedding.title}</h1>
+      <div class:list={["floral-portrait", !photo && "floral-portrait-monogram"]}>
+        {photo ? <img class="floral-couple-photo" src={photo} alt={text(s.main_photo_alt) || `Retrato de ${s.partner_one && s.partner_two ? `${s.partner_one} y ${s.partner_two}` : wedding.title}`} width="600" height="800" fetchpriority="high" /> : <div class="floral-portrait-initials" aria-hidden="true"><FloralArt name="lily" /><span>{initials}</span></div>}
+        <FloralLaceFrame />
+      </div>
+      <img class="floral-hero-bouquet" src="/templates/floral-romance/botanical.svg" alt="" width="400" height="600" />
+    </header>
+
+    {s.welcome_message && <section class="floral-welcome" data-floral-section="welcome" aria-labelledby="floral-welcome-title">
+      <FloralArt name="ornament" />
+      <h2 id="floral-welcome-title">¡Queridos amigos<br />y familiares!</h2>
+      <p>{s.welcome_message}</p>
+      <FloralArt name="ornament" class="floral-ornament-bottom" />
+    </section>}
+
+    {validDate && <section class="floral-calendar-section" data-floral-section="calendar" aria-labelledby="floral-calendar-title">
+      <div class="floral-calendar-envelope">
+        <div class="calendar-open-flap"></div>
+        <div class="floral-calendar-card">
+          <h2 id="floral-calendar-title">{month}</h2><p class="calendar-year">{validDate.getFullYear()}</p>
+          <table class="floral-calendar" aria-label={`Calendario de ${month} ${validDate.getFullYear()}`}>
+            <thead><tr>{["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((day, i) => <th scope="col" abbr={["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][i]}>{day}</th>)}</tr></thead>
+            <tbody>{Array.from({ length: Math.ceil((calendarOffset + daysInMonth) / 7) }, (_, week) => <tr>{Array.from({ length: 7 }, (_, weekday) => {
+              const day = week * 7 + weekday - calendarOffset + 1;
+              return <td>{day > 0 && day <= daysInMonth && (day === validDate.getDate() ? <span class="calendar-wedding-day" aria-label={`${day}, día de nuestra boda`}>{day}</span> : day)}</td>;
+            })}</tr>)}</tbody>
+          </table>
+        </div>
+        <div class="calendar-envelope-pocket"></div>
+        <span class="wax-seal calendar-seal"><FloralArt name="seal" /></span>
+        {activities.length > 0 && <a class="calendar-continue" href="#floral-itinerary">Revisa el itinerario<br />de nuestra boda<span aria-hidden="true">↓</span></a>}
+      </div>
+      <FloralArt name="lily" class="calendar-lilies" />
+    </section>}
+
+    {activities.length > 0 && <section id="floral-itinerary" class="floral-itinerary" data-floral-section="itinerary" aria-labelledby="floral-itinerary-title">
+      <h2 id="floral-itinerary-title">Itinerario</h2>
+      <ol>{activities.map((activity: any) => <li class="floral-activity">
+        <FloralArt name={activityArt(activity.title)} />
+        <span class="floral-timeline-point" aria-hidden="true"></span>
+        <div><h3>{activity.title}</h3><p class="floral-activity-time"><time>{activity.time}</time></p>{activity.description && <p class="floral-activity-description">{activity.description}</p>}</div>
+      </li>)}</ol>
+    </section>}
+
+    {locations.length > 0 && <section class="floral-location" data-floral-section="location" aria-labelledby="floral-location-title">
+      <h2 id="floral-location-title">Ubicación</h2>
+      {locations.map(({ prefix, title }) => <div class="floral-venue">
+        {locations.length > 1 && <p class="invitation-eyebrow">{title}</p>}
+        {s[`${prefix}_venue`] && <h3>{s[`${prefix}_venue`]}</h3>}
+        {s[`${prefix}_address`] && <p>{s[`${prefix}_address`]}</p>}
+        {safeUrl(s[`${prefix}_map_url`]) && <a class="floral-paper-button" href={safeUrl(s[`${prefix}_map_url`])} target="_blank" rel="noreferrer" aria-label={`Ver ubicación${locations.length > 1 ? ` de la ${title.toLowerCase()}` : ""}`}>Ver ubicación</a>}
+      </div>)}
+      <FloralArt name="estate" class="floral-estate" />
+    </section>}
+
+    {hasGifts && <section class="floral-gifts" data-floral-section="gifts" aria-labelledby="floral-gifts-title">
+      <article class="floral-gift-paper">
+        <div class="gift-paper-holes" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h2 id="floral-gifts-title">Mesa de regalos</h2>
+        {s.gifts_message && <p>{s.gifts_message}</p>}
+        {s.gifts && <p>{s.gifts}</p>}
+        {s.gifts_label && <h3>{s.gifts_label}</h3>}
+        {safeUrl(s.gifts_url) && <a class="invitation-primary" href={safeUrl(s.gifts_url)} target="_blank" rel="noreferrer">Ver mesa de regalos</a>}
+      </article>
+      <FloralArt name="lily" class="gift-lilies-top" /><FloralArt name="lily" class="gift-lilies-bottom" />
+    </section>}
+
+    {hasDress && <section class="floral-dress" data-floral-section="dress" aria-labelledby="floral-dress-title">
+      <div class="floral-dress-paper">
+        <h2 id="floral-dress-title">Vestimenta</h2>
+        {s.dress_code && <p class="floral-dress-code">{s.dress_code}</p>}
+        {s.dress_recommendations && <p>{s.dress_recommendations}</p>}
+        {s.dress_restrictions && <p>{s.dress_restrictions}</p>}
+        {dressColors.length > 0 && <ul class="floral-dress-colors" aria-label="Colores de vestimenta elegidos por los novios">{dressColors.map((color: string) => <li><span style={`--dress-color:${color}`} role="img" aria-label={`Color ${color}`}></span><span class="sr-only">{color}</span></li>)}</ul>}
+        <FloralArt name="attire" class="floral-attire" />
+        {safeUrl(s.dress_examples_url) && <a class="invitation-primary" href={safeUrl(s.dress_examples_url)} target="_blank" rel="noreferrer">Mira algunos ejemplos</a>}
+      </div>
+    </section>}
+
+    {(s.additional_information || s.contact_name || s.contact_phone) && <aside class="floral-extra">
+      <FloralArt name="ornament" />
+      {s.additional_information && <><h2>Los pequeños detalles</h2><p>{s.additional_information}</p></>}
+      {(s.contact_name || s.contact_phone) && <div class="floral-contact"><h3>¿Tienes alguna pregunta?</h3><p>{s.contact_name}<br />{s.contact_phone}</p></div>}
+    </aside>}
+
+    <section class="floral-rsvp-callout" data-floral-section="rsvp" aria-labelledby="floral-rsvp-title">
+      <FloralArt name="ornament" />
+      <h2 id="floral-rsvp-title">¿Nos acompañas?</h2>
+      {guest && <><p class="floral-guest-name">{guest.full_name}</p><p>Esta invitación está reservada para ti{guest.max_seats > 1 ? ` y hasta ${guest.max_seats - 1} ${guest.max_seats === 2 ? "acompañante" : "acompañantes"}` : ""}.</p></>}
+      {rsvp ? <>
+        <div class="floral-embedded-form"><RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} /></div>
+        {wedding.rsvp_deadline && <p class="invitation-deadline">Confirma antes del {new Date(`${wedding.rsvp_deadline}T12:00:00`).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}</p>}
+      </> : <InvitationActions rsvpPath={rsvpPath} declinePath={declinePath} deadline={wedding.rsvp_deadline} />}
+      <FloralArt name="ornament" class="floral-ornament-bottom" />
+    </section>
+    <footer class="floral-footer"><span>{initials}</span><p>Con todo nuestro amor</p></footer>
+  </div>
+</details>
+<script>
+  document.querySelectorAll<HTMLDetailsElement>("[data-floral-envelope]").forEach(envelope => {
+    const summary = envelope.querySelector("summary");
+    summary?.addEventListener("click", () => { if (!envelope.open) envelope.classList.add("is-opening"); });
+    envelope.addEventListener("toggle", () => {
+      if (!envelope.open) { envelope.classList.remove("is-opening"); return; }
+      window.setTimeout(() => {
+        envelope.classList.remove("is-opening");
+        const title = envelope.querySelector<HTMLElement>("[data-invitation-title]");
+        title?.focus({ preventScroll: true });
+        const start = envelope.closest(".invitation-content")?.querySelector("[data-invitation-recipient]") ?? envelope.querySelector(".floral-hero");
+        start?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1100);
+    });
+  });
+</script>

@@ -1,0 +1,17 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import type { WeddingSection } from "../../lib/nav";
+import AdminIcon from "../ui/AdminIcon.astro";
+interface Props { weddings: WeddingRow[]; section: WeddingSection; }
+const {weddings,section}=Astro.props;
+const isGuests=section==="guests";
+const title=isGuests?"Invitados":"Templates";
+---
+<section class="wedding-section-picker" data-wedding-section-picker={section}>
+  <header class="wedding-picker-header"><div><span class="admin-kicker">Cada boda tiene su propio espacio</span><h1>{title}</h1><p>{isGuests?"Elige la boda para agregar invitados, gestionar acompañantes y compartir sus invitaciones.":"Elige la boda para explorar los diseños y personalizar su invitación."}</p></div><a href="/weddings" class="admin-button admin-button-outline">Todas las bodas</a></header>
+  {weddings.length ? <div class="wedding-picker-grid">{weddings.map((wedding,index)=><a href={`/weddings/${wedding.id}/${section}`} class={`wedding-picker-card planner-card-${index%4}`} data-wedding-section-destination>
+    <div class="wedding-picker-card-top"><AdminIcon name={isGuests?"users":"grid"} /><span>{wedding.is_published?"Publicada":"Borrador"}</span></div>
+    <h2>{wedding.title || "Boda sin título"}</h2><p>{wedding.event_date?new Date(`${wedding.event_date}T12:00:00`).toLocaleDateString("es",{day:"numeric",month:"long",year:"numeric"}):"Fecha por definir"}</p>
+    <div class="wedding-picker-card-action"><span>{isGuests?"Gestionar invitados":"Elegir template"}</span><AdminIcon name="arrow" /></div>
+  </a>)}</div>:<div class="wedding-picker-empty"><AdminIcon name={isGuests?"users":"grid"} /><h2>Primero, crea una boda</h2><p>{isGuests?"Después podrás agregar sus invitados y preparar sus enlaces personales.":"Después podrás elegir el diseño de su invitación."}</p><a href="/weddings#new-wedding" class="admin-button admin-button-dark">Crear primera boda</a></div>}
+</section>

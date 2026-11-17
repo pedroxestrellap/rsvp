@@ -1,0 +1,13 @@
+---
+interface Props { path: string; label: string; }
+const { path, label } = Astro.props;
+const url = new URL(path, Astro.url.origin).href;
+---
+<div class="copy-link flex flex-wrap items-center gap-2">
+  <button type="button" data-copy-url={url} class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">{label}</button>
+  <a href={url} target="_blank" rel="noreferrer" class="text-xs underline text-slate-500">Abrir</a>
+  <span class="copy-status text-xs text-emerald-700" role="status"></span>
+</div>
+<script>
+  import "../../lib/copyLinkClient";
+</script>

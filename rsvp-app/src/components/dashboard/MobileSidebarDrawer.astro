@@ -1,92 +1,12 @@
 ---
 import SidebarContent from "./SidebarContent.astro";
-const { currentPath, workspace, sidebarStats } = Astro.props;
+import AdminIcon from "../ui/AdminIcon.astro";
+const props=Astro.props;
 ---
-
+<dialog class="admin-mobile-menu" data-admin-menu aria-labelledby="admin-menu-title"><div class="admin-mobile-menu-heading"><h2 id="admin-menu-title">Wedding Suite</h2><button type="button" class="admin-icon-button" data-close-admin-menu aria-label="Cerrar menú"><AdminIcon name="close" /></button></div><SidebarContent {...props} expanded /></dialog>
 <script>
-  const portal = document.getElementById("portal-root");
-
-  // Si no existe (por si acaso), no hacemos nada.
-  if (!portal) console.warn("Missing #portal-root in BaseLayout");
-
-  function render() {
-    if (!portal) return;
-
-    // Evita duplicar
-    if (document.getElementById("ws-overlay")) return;
-
-    const overlay = document.createElement("div");
-    overlay.id = "ws-overlay";
-    overlay.className = "fixed inset-0 z-[80] hidden bg-black/50";
-    overlay.style.height = "100dvh";
-    overlay.style.width = "100vw";
-
-    const drawer = document.createElement("aside");
-    drawer.id = "ws-drawer";
-    drawer.className =
-      "fixed left-0 top-0 z-[90] hidden h-[100dvh] w-[82vw] max-w-[320px] border-r border-slate-200 bg-white shadow-xl lg:hidden";
-
-    // Contenido del sidebar (se inyecta como HTML)
-    drawer.innerHTML = `
-      <div class="flex items-center justify-between border-b border-slate-100 p-4">
-        <div class="flex items-center gap-3">
-          <div class="grid h-10 w-10 place-items-center rounded-full bg-emerald-600 text-white font-semibold">W</div>
-          <div>
-            <div class="text-sm font-semibold text-slate-900">Wedding Suite</div>
-            <div class="text-xs text-slate-500">Planner</div>
-          </div>
-        </div>
-
-        <button id="ws-close" class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50" aria-label="Cerrar">
-          ✕
-        </button>
-      </div>
-
-      <div id="ws-content"></div>
-    `;
-
-    portal.appendChild(overlay);
-    portal.appendChild(drawer);
-
-    // Mueve el HTML de SidebarContent dentro del drawer
-    // Nota: Astro no puede renderizar directo dentro de innerHTML desde aquí,
-    // así que el contenido real lo renderizamos abajo en el componente y lo “copiamos”.
-    const source = document.getElementById("ws-sidebar-source");
-    const target = document.getElementById("ws-content");
-    if (source && target) target.innerHTML = source.innerHTML;
-
-    const closeBtn = document.getElementById("ws-close");
-
-    function open() {
-      document.body.style.overflow = "hidden";
-      overlay.classList.remove("hidden");
-      drawer.classList.remove("hidden");
-    }
-
-    function close() {
-      document.body.style.overflow = "";
-      overlay.classList.add("hidden");
-      drawer.classList.add("hidden");
-    }
-
-    // Exponer funciones globales para el botón hamburguesa
-    window.__ws_openDrawer = open;
-    window.__ws_closeDrawer = close;
-
-    overlay.addEventListener("click", close);
-    closeBtn?.addEventListener("click", close);
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") close();
-    });
-  }
-
-  // Render una vez
-  render();
+  const menu=document.querySelector<HTMLDialogElement>("[data-admin-menu]");
+  document.querySelectorAll("[data-open-admin-menu]").forEach(button=>button.addEventListener("click",()=>menu?.showModal()));
+  menu?.querySelector("[data-close-admin-menu]")?.addEventListener("click",()=>menu.close());
+  menu?.addEventListener("click",event=>{if((event.target as Element).closest("a"))menu.close();});
 </script>
-
-<!-- Sidebar real como “source” oculto para copiarlo al portal -->
-<div id="ws-sidebar-source" class="hidden">
-  <SidebarContent currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} />
-</div>
-

@@ -1,0 +1,39 @@
+---
+import AdminIcon from "../ui/AdminIcon.astro";
+import { phoneCountries } from "../../lib/guestForm";
+---
+<dialog class="guest-create-dialog" id="guest-create-dialog" aria-labelledby="guest-create-title" data-guest-dialog>
+  <div class="guest-dialog-heading">
+    <div><span class="admin-kicker">Una invitación, muchas historias</span><h2 id="guest-create-title">Agregar invitado</h2><p>Prepara su enlace personal y reserva los lugares de quienes lo acompañan.</p></div>
+    <button type="button" class="admin-icon-button" data-close-guest-dialog aria-label="Cerrar formulario"><AdminIcon name="close" /></button>
+  </div>
+  <form method="POST" data-create-guest-form novalidate>
+    <input type="hidden" name="action" value="create_guest" />
+    <input type="hidden" name="companion_mode" value="names" />
+    <input type="hidden" name="allow_unnamed_companions" value="" />
+    <div class="guest-dialog-fields">
+      <label class="admin-field guest-field-wide"><span>Nombre completo <span aria-hidden="true">*</span></span><input name="full_name" autocomplete="name" required maxlength="200" placeholder="Nombre y apellido" data-guest-validate aria-describedby="create-name-error" /><span class="field-error" id="create-name-error" data-field-error hidden></span></label>
+      <label class="admin-field guest-field-wide"><span>Email <span class="field-optional">Opcional</span></span><input name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="nombre@dominio.com" data-guest-validate aria-describedby="create-email-error" /><span class="field-error" id="create-email-error" data-field-error hidden></span></label>
+      <label class="admin-field">Código de país<select name="phone_country" autocomplete="tel-country-code">{phoneCountries.map(country=><option value={country.value}>{country.label}</option>)}</select></label>
+      <label class="admin-field"><span>Teléfono <span class="field-optional">Opcional</span></span><input name="phone" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="30" placeholder="809 555 0123" data-guest-validate aria-describedby="create-phone-error" /><span class="field-error" id="create-phone-error" data-field-error hidden></span></label>
+    </div>
+    <section class="guest-dialog-companions" aria-labelledby="guest-companions-title">
+      <div class="guest-companions-heading"><div><h3 id="guest-companions-title">Acompañantes</h3><p>Agrega un campo por cada lugar que quieras reservar.</p></div><span data-companion-count class="admin-count">0</span></div>
+      <div class="guest-companion-inputs" data-new-companions></div>
+      <button type="button" class="admin-button admin-button-outline" data-add-companion><AdminIcon name="plus" />Agregar acompañante</button>
+      <p class="field-hint">Puedes completar sus nombres ahora o dejar que el invitado los indique al confirmar.</p>
+    </section>
+    <div class="guest-empty-warning" data-empty-companions-warning role="alert" hidden>
+      <strong>Dejaste acompañantes sin nombre</strong><p data-empty-companions-message></p>
+      <div><button type="button" class="admin-button admin-button-outline" data-review-companions>Completar nombres</button><button type="button" class="admin-button admin-button-dark" data-confirm-empty-companions>Crear de todas formas</button></div>
+    </div>
+    <p class="guest-dialog-error" data-create-guest-error role="alert" hidden></p>
+    <div class="guest-dialog-footer"><button type="button" class="admin-button admin-button-outline" data-close-guest-dialog>Cancelar</button><button type="submit" class="admin-button admin-button-dark" data-create-guest-submit>Crear invitado<AdminIcon name="arrow" /></button></div>
+  </form>
+  <template data-companion-template>
+    <div class="guest-new-companion"><span class="guest-companion-number" aria-hidden="true"></span><label class="admin-field"><span class="sr-only" data-companion-label></span><input name="companion_names" autocomplete="off" maxlength="200" placeholder="Nombre del acompañante (opcional)" data-guest-validate /><span class="field-error" data-field-error hidden></span></label><button type="button" class="admin-icon-button" data-remove-companion aria-label="Quitar acompañante"><AdminIcon name="close" /></button></div>
+  </template>
+</dialog>
+<script>
+  import "../../lib/guestCreateClient";
+</script>

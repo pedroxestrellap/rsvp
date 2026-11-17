@@ -1,0 +1,82 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import { weddingTemplates, getWeddingTemplate } from "../../lib/weddingTemplates";
+import AdminIcon from "../ui/AdminIcon.astro";
+import "../../styles/template-catalogue.css";
+interface Props { weddings: WeddingRow[]; }
+const {weddings}=Astro.props;
+---
+<section class="template-catalogue" data-template-catalogue>
+  <header class="template-catalogue-heading"><span class="admin-kicker">El diseño de cada historia</span><h1>Templates</h1><p>Explora los diseños disponibles. Elige el que más te guste y después aplícalo a una boda.</p></header>
+  <div class="template-catalogue-count"><h2>Diseños disponibles<span class="admin-count">{weddingTemplates.length}</span></h2><span>Para móvil y escritorio</span></div>
+  <div class="template-catalogue-grid">{weddingTemplates.map(template=><article class="template-catalogue-card" data-template-card={template.id}>
+    <button type="button" class="template-catalogue-image" data-template-zoom data-template-name={template.name} data-template-image={template.thumbnail} aria-label={`Ampliar diseño ${template.name}`} aria-haspopup="dialog"><img src={template.thumbnail} alt={`Diseño de ${template.name}`} width="720" height="540" /><span>{template.style}</span></button>
+    <div class="template-catalogue-card-body"><span class="admin-kicker">{template.eyebrow}</span><h3>{template.name}</h3><p>{template.description}</p><div class="template-catalogue-palette" aria-label={`Paleta de ${template.name}`}>{template.colors.map(color=><span style={`background-color:${color}`} role="img" aria-label={color}></span>)}</div>
+      <div class="template-catalogue-actions"><button type="button" class="admin-button admin-button-outline" data-template-zoom data-template-name={template.name} data-template-image={template.thumbnail}>Ampliar diseño</button><button type="button" class="admin-button admin-button-dark" data-template-apply={template.id} data-template-name={template.name} aria-haspopup="dialog">Usar template<AdminIcon name="arrow" /></button></div>
+    </div>
+  </article>)}</div>
+  <dialog class="template-catalogue-dialog template-zoom-dialog" data-template-zoom-dialog aria-labelledby="template-zoom-title"><div class="template-dialog-heading"><h2 id="template-zoom-title"></h2><button type="button" class="admin-icon-button" data-close-template-dialog aria-label="Cerrar diseño"><AdminIcon name="close" /></button></div><img data-template-zoom-image alt="" width="720" height="540" /></dialog>
+  <dialog class="template-catalogue-dialog template-apply-dialog" data-template-apply-dialog aria-labelledby="template-apply-title"><div class="template-dialog-heading"><div><span class="admin-kicker">Llévalo a su gran día</span><h2 id="template-apply-title">Usar template</h2><p data-template-apply-description></p></div><button type="button" class="admin-icon-button" data-close-template-dialog aria-label="Cerrar selección de boda"><AdminIcon name="close" /></button></div>
+    {weddings.length?<form method="POST" action={weddings.length===1?`/weddings/${weddings[0].id}/templates`:undefined} data-template-apply-form>
+      <input type="hidden" name="theme_id" value="" />
+      <label class="admin-field"><span id="template-wedding-label">Boda</span><select name="wedding_id" required data-template-wedding aria-labelledby="template-wedding-label"><option value="" disabled selected={weddings.length!==1}>Elige una boda</option>{weddings.map(wedding=><option value={wedding.id} selected={weddings.length===1} data-current-template={getWeddingTemplate(wedding.theme_id).id}>{wedding.title || "Boda sin título"}</option>)}</select></label>
+      <p class="template-current-note" data-template-current-note role="status" hidden></p>
+      <p class="template-apply-hint">Puedes abrir la vista previa con los datos de esa boda antes de aplicar el diseño.</p>
+      <div class="template-dialog-actions"><a class="admin-button admin-button-outline" data-template-wedding-preview aria-disabled="true">Vista previa en esta boda</a><button class="admin-button admin-button-dark" type="submit" data-template-submit disabled>Usar template</button></div>
+    </form>:<div class="template-no-weddings"><h3>Primero, crea una boda</h3><p>Los diseños ya están disponibles. Crea una boda para aplicar tu favorito a su invitación.</p><a class="admin-button admin-button-dark" href="/weddings#new-wedding">Crear primera boda</a></div>}
+  </dialog>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>("[data-template-catalogue]").forEach(root=>{
+    const zoom=root.querySelector<HTMLDialogElement>("[data-template-zoom-dialog]")!;
+    const apply=root.querySelector<HTMLDialogElement>("[data-template-apply-dialog]")!;
+    const form=root.querySelector<HTMLFormElement>("[data-template-apply-form]");
+    const select=form?.querySelector<HTMLSelectElement>("[data-template-wedding]");
+    let templateId="",templateName="";
+    let opener:HTMLElement|null=null;
+    [zoom,apply].forEach(dialog=>{
+      dialog.querySelector("[data-close-template-dialog]")?.addEventListener("click",()=>dialog.close());
+      dialog.addEventListener("close",()=>opener?.focus());
+      dialog.addEventListener("click",event=>{
+        if(event.target!==dialog)return;
+        const bounds=dialog.getBoundingClientRect();
+        if(event.clientX<bounds.left || event.clientX>bounds.right || event.clientY<bounds.top || event.clientY>bounds.bottom)dialog.close();
+      });
+    });
+    const update=()=>{
+      if(!form || !select)return;
+      const weddingId=select.value;
+      const preview=form.querySelector<HTMLAnchorElement>("[data-template-wedding-preview]")!;
+      const submit=form.querySelector<HTMLButtonElement>("[data-template-submit]")!;
+      const note=form.querySelector<HTMLElement>("[data-template-current-note]")!;
+      const current=select.selectedOptions[0]?.dataset.currentTemplate===templateId;
+      (form.elements.namedItem("theme_id") as HTMLInputElement).value=templateId;
+      submit.disabled=!weddingId || current;
+      submit.textContent=current?"Template ya activo":"Usar template";
+      note.hidden=!current;
+      note.textContent=current?`Esta boda ya utiliza ${templateName}.`:"";
+      if(weddingId){
+        form.action=`/weddings/${encodeURIComponent(weddingId)}/templates`;
+        preview.href=`/weddings/${encodeURIComponent(weddingId)}/templates/preview/${encodeURIComponent(templateId)}`;
+        preview.removeAttribute("aria-disabled");
+      }else{
+        form.removeAttribute("action");preview.removeAttribute("href");preview.setAttribute("aria-disabled","true");
+      }
+    };
+    select?.addEventListener("change",update);
+    root.addEventListener("click",event=>{
+      const button=(event.target as Element).closest<HTMLButtonElement>("[data-template-zoom],[data-template-apply]");
+      if(!button)return;
+      opener=button;
+      if(button.hasAttribute("data-template-zoom")){
+        zoom.querySelector("h2")!.textContent=button.dataset.templateName!;
+        const image=zoom.querySelector<HTMLImageElement>("[data-template-zoom-image]")!;
+        image.src=button.dataset.templateImage!;image.alt=`Diseño de ${button.dataset.templateName}`;
+        zoom.showModal();return;
+      }
+      templateId=button.dataset.templateApply!;templateName=button.dataset.templateName!;
+      apply.querySelector("[data-template-apply-description]")!.textContent=`${templateName} · Elige la boda que usará este diseño.`;
+      update();apply.showModal();select?.focus();
+    });
+  });
+</script>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 150" fill="none">
+ <defs>
+  <linearGradient id="mould" x2="0" y2="1"><stop stop-color="#FFFCF6"/><stop offset=".28" stop-color="#A79DBB"/><stop offset=".4" stop-color="#FFF9F0"/><stop offset=".62" stop-color="#77766E"/><stop offset=".74" stop-color="#FFF9F0"/><stop offset="1" stop-color="#A79DBB"/></linearGradient>
+  <g id="scroll" stroke="url(#mould)" stroke-width="5" stroke-linecap="round"><path d="M0 31C-26 2-55 5-52 27-50 42-31 42-30 28-29 9-70-6-84 19-99 45-64 54-58 37M-17 28C-21-4-2-13 10 2 19 14 7 24 0 14M-52 5c-3-20-20-25-29-11-10 16 10 27 17 15"/><path d="M-78 41c-4 18-23 26-39 10 10 2 21-4 20-15-7-2-16-7-16-16 15 8 23 4 29-5"/><path d="M-27 15c5-9 12-15 21-14M-81 19l-14-9" stroke="#FFFCF6" stroke-width="1.5"/></g>
+ </defs>
+ <path d="M29 150v-16C29 79 58 50 103 51l64 4c27 3 49-8 62-26q21-25 42 0c13 18 35 29 62 26l64-4c45-1 74 28 74 83v16" stroke="#343B32" stroke-opacity=".24" stroke-width="14"/>
+ <path d="M29 150v-16C29 79 58 50 103 51l64 4c27 3 49-8 62-26q21-25 42 0c13 18 35 29 62 26l64-4c45-1 74 28 74 83v16" stroke="url(#mould)" stroke-width="11"/>
+ <path d="M41 150v-16c0-46 22-69 62-69l64 4c29 2 54-9 72-30q11-15 22 0c18 21 43 32 72 30l64-4c40 0 62 23 62 69v16" stroke="url(#mould)" stroke-width="4"/>
+ <path d="M50 150v-16c0-40 18-59 53-59l64 4c34 3 60-9 83-31 23 22 49 34 83 31l64-4c35 0 53 19 53 59v16" stroke="#FFFCF6" stroke-width="2"/>
+ <use href="#scroll" transform="translate(244 31)"/><use href="#scroll" transform="translate(256 31) scale(-1 1)"/>
+ <use href="#scroll" transform="translate(121 72) rotate(-18) scale(.66)"/><use href="#scroll" transform="translate(379 72) rotate(18) scale(-.66 .66)"/>
+ <g fill="url(#mould)" stroke="#77766E" stroke-width=".6"><path d="M250 59c-26-15-31-40-17-49 15 0 17 15 17 29 0-14 2-29 17-29 14 9 9 34-17 49Z"/><path d="M250 40c-12-17-9-31 0-38 9 7 12 21 0 38Z"/><circle cx="250" cy="62" r="8"/></g>
+ <path d="M250 9v27m-17-18 13 24m21-24-13 24" stroke="#FFFCF6" stroke-width="1.5"/>
+ <g stroke="url(#mould)" stroke-width="3"><path d="M54 111c24-7 22-29 9-25-12 2-8 17 3 18m380 7c-24-7-22-29-9-25 12 2 8 17-3 18"/></g>
+</svg>

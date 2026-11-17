@@ -1,0 +1,49 @@
+---
+import InvitationLayout from "@/layouts/InvitationLayout.astro";
+import InvitationView from "@/components/invitations/InvitationView.astro";
+import RsvpForm from "@/components/invitations/RsvpForm.astro";
+import GuestManager from "@/components/weddings/GuestManager.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+if (!import.meta.env.DEV) return new Response(null, { status: 404 });
+const empty = Astro.url.searchParams.has("empty");
+const form = Astro.url.searchParams.has("form");
+const preview = !Astro.url.searchParams.has("submit");
+const initialStatus = Astro.url.searchParams.get("status") === "declined" ? "declined" : "confirmed";
+const wedding = { id: "visual-test", workspace_id: "test", slug: "visual-test", title: "Elena y Gabriel", event_date: empty ? null : "2028-02-29", rsvp_deadline: "2028-02-01", theme_id: "floral_romance", is_published: false, created_at: null, settings: empty ? {} : {
+  partner_one: "Elena", partner_two: "Gabriel",
+  main_photo_url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85&fit=crop",
+  welcome_message: "Estamos encantados de invitarlos a nuestra primera celebración como familia.\n¡Nuestra boda!\nAcompáñennos a vivir uno de los días más importantes de nuestras vidas.",
+  itinerary: [{title:"Recepción",time:"16:00",description:"Cóctel de bienvenida"},{title:"Ceremonia",time:"17:00",description:"Nuestro para siempre comienza aquí"},{title:"Cena",time:"18:00",description:"Una velada para compartir"},{title:"Pastel",time:"21:00",description:"Un dulce comienzo"},{title:"Fin del evento",time:"01:00",description:"Gracias por ser parte de nuestra historia"}],
+  reception_venue: "Jardín de la celebración", reception_address: "Dirección del lugar elegido para la prueba visual", reception_map_url: "https://maps.google.com/",
+  gifts_message: "Su presencia es lo más importante. Si desean hacernos un regalo, les compartimos nuestra mesa de regalos.", gifts: "Número de evento: prueba visual", gifts_label:"Nuestra lista", gifts_url:"https://example.com/regalos",
+  dress_code: "Formal de jardín", dress_recommendations:"Vestidos de telas fluidas.\nTraje ligero y camisa en tonos claros.", dress_restrictions:"Evitar lentejuelas y prendas blancas.", dress_colors:["#EAB7BD","#E7C18F","#B4C5DD"], dress_examples_url:"https://example.com/vestimenta",
+  rsvp_form: { ask_companion_names:true, show_dietary:true, show_message:true },
+} };
+const guest = Astro.url.searchParams.has("general") ? null : { full_name: "Invitada de verificación", max_seats: Astro.url.searchParams.has("solo") ? 1 : 3 };
+const companions = Astro.url.searchParams.has("unnamed") ? [] : [
+  { id: "companion-one", full_name: "Primera acompañante", attending: false },
+  { id: "companion-two", full_name: "Segundo acompañante", attending: false },
+];
+const theme = Astro.url.searchParams.get("template") === "seda_promesas" ? "seda_promesas" : Astro.url.searchParams.has("classic") ? "theme_1" : "floral_romance";
+if (Astro.url.searchParams.has("long")) {
+  wedding.settings.partner_one = "María Alejandra de la Cruz";
+  wedding.settings.partner_two = "Juan Sebastián";
+  wedding.settings.itinerary = Array.from({length:12},(_,i)=>({title:`Actividad ${i+1}`,time:`${String(12+i).padStart(2,"0")}:00`,description:"Descripción del momento compartido con nuestros invitados."}));
+}
+if (Astro.url.searchParams.has("past")) wedding.event_date = "2000-01-01";
+if (Astro.url.searchParams.has("optional-names")) wedding.settings.rsvp_form.ask_companion_names = false;
+if (Astro.url.searchParams.has("reference")) {
+  wedding.settings.itinerary = wedding.settings.itinerary?.slice(0,3);
+  for (const field of ["gifts", "gifts_message", "gifts_label", "gifts_url", "dress_code", "dress_recommendations", "dress_restrictions", "dress_examples_url"]) wedding.settings[field] = "";
+  wedding.settings.dress_colors = [];
+}
+const createdId = Astro.request.method === "POST" ? String((await Astro.request.formData()).get("guest_id")) : "";
+const guests = [
+  {id:"guest-one",wedding_id:wedding.id,full_name:"Invitada de verificación",is_primary:true,max_seats:3,invite_code:"personal-one",primary_guest_id:null},
+  {id:"guest-two",wedding_id:wedding.id,full_name:"Otro invitado",is_primary:true,max_seats:1,invite_code:"personal-two",primary_guest_id:null},
+  {id:"guest-legacy",wedding_id:wedding.id,full_name:"Invitado anterior",is_primary:null,max_seats:1,invite_code:createdId === "guest-legacy" ? "legacy-personal" : null,primary_guest_id:null},
+];
+---
+{Astro.url.searchParams.has("guests") ? <BaseLayout title="Invitados de verificación"><main class="mx-auto max-w-5xl p-4"><GuestManager guests={(Astro.url.searchParams.has("legacy-only") ? guests.filter(guest=>guest.id==="guest-legacy") : guests) as any} weddingId={wedding.id} slug={wedding.slug} compact /></main></BaseLayout> : <InvitationLayout weddingTitle="Verificación local · Floral Romance" themeId={theme} form={form}>
+  {form ? <RsvpForm wedding={wedding} guest={guest} code="local-check" companions={companions} preview={preview} initialStatus={initialStatus} backPath="/floral-visual-check" /> : <InvitationView wedding={{...wedding,theme_id:theme}} guest={guest} rsvp={{code:"local-check",companions,preview}} rsvpPath="/floral-visual-check?form&code=local-check" declinePath="/floral-visual-check?form&code=local-check&status=declined" />}
+</InvitationLayout>}

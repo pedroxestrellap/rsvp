@@ -2,12 +2,20 @@
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import { supabaseServer } from "../../lib/supabaseServer";
 import { listWeddingsByWorkspace, createWedding } from "../../lib/weddingsServer";
+import WeddingLinks from "../../components/weddings/WeddingLinks.astro";
+import { isSameOrigin } from "../../lib/weddingAccessServer";
+import { weddingSection, singleWeddingSectionPath } from "../../lib/nav";
+import WeddingSectionPicker from "../../components/weddings/WeddingSectionPicker.astro";
+import TemplateCatalogue from "../../components/weddings/TemplateCatalogue.astro";
 
 const supabase = supabaseServer(Astro);
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) return Astro.redirect("/dashboard/login");
 
 const { data: memberships, error: mErr } = await supabase
   .from("workspace_users")
   .select("workspace_id, workspaces:workspace_id(id,name,slug)")
+  .eq("user_id", user.id)
   .limit(1);
 
 if (mErr) throw mErr;
@@ -18,6 +26,7 @@ const workspaceId = memberships?.[0]?.workspace_id ?? null;
 if (!workspaceId) throw new Error("No workspace");
 
 if (Astro.request.method === "POST") {
+  if (!isSameOrigin(Astro.request, Astro.url)) return new Response("Origen no permitido", { status: 403 });
   const form = await Astro.request.formData();
   const title = String(form.get("title") ?? "").trim();
   const event_date = String(form.get("event_date") ?? "").trim();
@@ -32,17 +41,20 @@ if (Astro.request.method === "POST") {
 }
 
 const weddings = await listWeddingsByWorkspace(supabase, workspaceId);
+const section=weddingSection(Astro.url.searchParams.get("section"));
+const destination=section?singleWeddingSectionPath(weddings,section):null;
+if(destination)return Astro.redirect(destination,302);
 ---
 
-<DashboardLayout title="Bodas">
-  <div class="mx-auto max-w-6xl px-6 py-6">
+<DashboardLayout title={section==="guests"?"Invitados":section==="templates"?"Templates":"Bodas"}>
+  {section==="templates"?<TemplateCatalogue weddings={weddings} />:section?<WeddingSectionPicker weddings={weddings} section={section} />:<div class="mx-auto max-w-6xl px-6 py-6">
     <div class="flex items-start justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold text-slate-900">Bodas</h1>
         <p class="mt-1 text-sm text-slate-500">Crea y gestiona bodas dentro de tu workspace.</p>
       </div>
 
-      <form method="POST" class="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200 bg-white p-4">
+      <form method="POST" id="new-wedding" class="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200 bg-white p-4">
         <div>
           <label class="text-xs text-slate-500">Título</label>
           <input name="title" class="mt-1 w-56 rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Boda de Ana & Luis" />
@@ -64,10 +76,8 @@ const weddings = await listWeddingsByWorkspace(supabase, workspaceId);
         </div>
       ) : (
         weddings.map((w) => (
-          <a
-            href={`/weddings/${w.id}`}
-            class="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:bg-slate-50"
-          >
+          <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <a href={`/weddings/${w.id}`} class="block rounded-xl p-2 hover:bg-slate-50">
             <div class="flex items-center justify-between gap-4">
               <div>
                 <div class="text-sm font-semibold text-slate-900">{w.title ?? "Boda sin título"}</div>
@@ -83,8 +93,11 @@ const weddings = await listWeddingsByWorkspace(supabase, workspaceId);
               </span>
             </div>
           </a>
+          <div class="mt-3 flex flex-wrap gap-4 px-2 text-sm font-semibold text-emerald-700"><a href={`/weddings/${w.id}`}>Editar boda y formulario →</a><a href={`/weddings/${w.id}/guests`}>Gestionar invitados →</a><a href={`/weddings/${w.id}/templates`}>Templates →</a></div>
+          <div class="mt-4"><WeddingLinks wedding={w} /></div>
+          </article>
         ))
       )}
     </div>
-  </div>
+  </div>}
 </DashboardLayout>

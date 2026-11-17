@@ -1,0 +1,42 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import DesktopSidebar from "../components/dashboard/DesktopSidebar.astro";
+import MobileSidebarDrawer from "../components/dashboard/MobileSidebarDrawer.astro";
+import DashboardHeader from "../components/dashboard/layout/DashboardHeader.astro";
+import AdminIcon from "../components/ui/AdminIcon.astro";
+import "../styles/admin.css";
+interface Props {
+  title?: string; currentPath?: string; workspace?: {name?: string|null;slug?: string|null}|null;
+  sidebarStats?: {published:number;drafts:number;rsvpToday:number}|null;
+  mode?: "planner"|"couple"; couplePath?: string; activeTab?: string;
+  summary?: {label:string;value:number}[]; progress?: {label:string;done:number;total:number}; eventDate?: string|null;
+}
+const { title="Wedding Suite",currentPath=Astro.url.pathname,workspace,sidebarStats,mode="planner",couplePath="",activeTab="guests",summary,progress,eventDate }=Astro.props;
+const name=workspace?.name || (mode==="couple"?"Nuestra boda":"Mi espacio de trabajo");
+const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+const stats=summary ?? [{label:"Publicadas",value:sidebarStats?.published??0},{label:"Borradores",value:sidebarStats?.drafts??0},{label:"Respuestas hoy",value:sidebarStats?.rsvpToday??0}];
+const activity=progress ?? {label:"Invitaciones publicadas",done:sidebarStats?.published??0,total:(sidebarStats?.published??0)+(sidebarStats?.drafts??0)};
+const percentage=activity.total?Math.min(100,Math.round(activity.done/activity.total*100)):0;
+---
+<BaseLayout title={title}>
+  <Fragment slot="head"><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" /></Fragment>
+  <div class:list={["admin-shell",mode==="couple" && "admin-shell-couple"]}>
+    <a class="admin-skip-link" href="#admin-main">Saltar al contenido</a>
+    <DesktopSidebar currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} mode={mode} couplePath={couplePath} activeTab={activeTab} />
+    <MobileSidebarDrawer currentPath={currentPath} workspace={workspace} sidebarStats={sidebarStats} mode={mode} couplePath={couplePath} activeTab={activeTab} />
+    <div class="admin-workspace">
+      <DashboardHeader mode={mode} workspaceName={name} />
+      <div class="admin-content-grid">
+        <main id="admin-main" class="admin-main"><slot /></main>
+        <aside class="admin-context-panel" aria-label="Resumen del espacio">
+          <div class="admin-context-top"><AdminIcon name="heart" /><span>{mode==="couple"?"Su gran día":"Tu espacio creativo"}</span></div>
+          <div class="admin-profile"><div class="admin-profile-avatar" aria-hidden="true">{initials}</div><h2>{name}</h2><p>{mode==="couple"?"El espacio de nuestra boda":"Wedding planner"}</p>{eventDate && <span class="admin-event-date">{new Date(`${eventDate}T12:00:00`).toLocaleDateString("es",{day:"numeric",month:"long",year:"numeric"})}</span>}</div>
+          <div class="admin-context-stats">{stats.map(item=><div><strong>{item.value}</strong><span>{item.label}</span></div>)}</div>
+          <section class="admin-progress-card"><div><h3>{activity.label}</h3><span>{percentage}%</span></div><div class="admin-progress-track" role="progressbar" aria-label={activity.label} aria-valuenow={percentage} aria-valuemin="0" aria-valuemax="100"><span style={`width:${percentage}%`}></span></div><p>{activity.done} de {activity.total} {mode==="couple"?"invitaciones confirmadas":"bodas listas para compartir"}</p></section>
+          <section class="admin-context-note"><span class="admin-kicker">Pequeños detalles, grandes momentos</span><h3>{mode==="couple"?"Una invitación para cada persona especial.":"Dale forma a cada historia."}</h3><p>{mode==="couple"?"Agrega sus acompañantes y comparte su enlace personal desde tu lista.":"Reúne los detalles, el diseño y las personas de cada celebración en un solo lugar."}</p><a href={mode==="couple"?`${couplePath}?tab=information`:"/weddings"} class="admin-context-link">{mode==="couple"?"Preparar nuestra boda":"Gestionar mis bodas"}<AdminIcon name="arrow" /></a></section>
+          <p class="admin-context-footer">Hecho para celebrar, sin complicaciones.</p>
+        </aside>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

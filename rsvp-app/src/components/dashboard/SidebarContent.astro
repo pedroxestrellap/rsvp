@@ -1,77 +1,23 @@
 ---
-import { isActivePath } from "../../lib/nav";
-
-type Props = {
-  currentPath: string;
-  workspace?: { name?: string | null; slug?: string | null } | null;
-  sidebarStats?: { published: number; drafts: number; rsvpToday: number } | null;
-};
-
-const { currentPath, workspace = null, sidebarStats = null } = Astro.props;
-
-const links = [
-  { label: "Resumen", href: "/dashboard" },
-  { label: "Bodas", href: "/weddings" },
-  { label: "Invitados", href: "/guests" },
-  { label: "Configuración", href: "/settings" },
+import { isActivePath, weddingSection, weddingSectionPath } from "../../lib/nav";
+import AdminIcon from "../ui/AdminIcon.astro";
+const {currentPath="",workspace=null,mode="planner",couplePath="",activeTab="guests",expanded=false}=Astro.props;
+const weddingId=currentPath.match(/^\/weddings\/([^/]+)/)?.[1];
+const section=currentPath==="/weddings"?weddingSection(Astro.url.searchParams.get("section")):null;
+const links=mode==="couple"?[
+  {label:"Invitados",href:`${couplePath}?tab=guests`,icon:"users",tab:"guests",active:activeTab==="guests"},
+  {label:"Información de la boda",href:`${couplePath}?tab=information`,icon:"calendar",tab:"information",active:activeTab==="information"},
+  {label:"Formulario RSVP",href:`${couplePath}?tab=form`,icon:"mail",tab:"form",active:activeTab==="form"},
+]:[
+  {label:"Resumen",href:"/dashboard",icon:"home",active:isActivePath(currentPath,"/dashboard")},
+  {label:"Bodas",href:"/weddings",icon:"calendar",active:(currentPath==="/weddings" && !section) || Boolean(weddingId && !/guests|templates/.test(currentPath))},
+  {label:"Invitados",href:weddingSectionPath(currentPath,"guests"),icon:"users",active:currentPath.includes("/guests") || section==="guests"},
+  {label:"Templates",href:weddingSectionPath(currentPath,"templates"),icon:"grid",active:currentPath.includes("/templates") || section==="templates"},
 ];
-
-function linkClass(active: boolean) {
-  return active
-    ? "block rounded-xl px-4 py-3 text-sm font-semibold text-emerald-900 bg-emerald-50"
-    : "block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50";
-}
+const initials=(workspace?.name || "Wedding Suite").split(/\s+/).slice(0,2).map((part:string)=>part[0]).join("");
 ---
-
-<nav class="p-4">
-  <div class="rounded-2xl border border-slate-200 bg-white p-4">
-    <p class="text-xs text-slate-500">Workspace</p>
-    <p class="mt-1 text-base font-semibold text-slate-900">
-      {workspace?.name || "Mi Workspace"}
-    </p>
-    <p class="mt-1 text-sm text-slate-500">
-      {workspace?.slug || "—"}
-    </p>
-  </div>
-
-  <div class="mt-5 space-y-2">
-    {links.map((l) => {
-      const active = isActivePath(currentPath, l.href);
-      return (
-        <a class={linkClass(active)} href={l.href}>
-          {l.label}
-        </a>
-      );
-    })}
-  </div>
-
-  <!-- <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-    <div class="grid grid-cols-3 gap-3 text-xs text-slate-500">
-      <div>
-        <div>Publicadas</div>
-        <div class="mt-1 text-lg font-semibold text-slate-900">
-          {sidebarStats?.published ?? 0}
-        </div>
-      </div>
-      <div>
-        <div>Borradores</div>
-        <div class="mt-1 text-lg font-semibold text-slate-900">
-          {sidebarStats?.drafts ?? 0}
-        </div>
-      </div>
-      <div>
-        <div>RSVP hoy</div>
-        <div class="mt-1 text-lg font-semibold text-slate-900">
-          {sidebarStats?.rsvpToday ?? 0}
-        </div>
-      </div>
-    </div>
-  </div> -->
-
-  <!-- <a
-    href="/weddings/new"
-    class="mt-6 block w-full rounded-2xl bg-emerald-600 px-4 py-4 text-center text-sm font-semibold text-white hover:bg-emerald-700"
-  >
-    + Nueva boda
-  </a> -->
+<nav class:list={["admin-navigation",expanded && "admin-navigation-expanded"]} aria-label={mode==="couple"?"Nuestra boda":"Navegación principal"}>
+  {links.map(link=><a href={link.href} aria-label={link.label} aria-current={link.active?"page":undefined} class:list={["admin-nav-link",link.active && "is-active"]} data-couple-nav={"tab" in link?link.tab:undefined}><AdminIcon name={link.icon} /><span class="admin-nav-label">{link.label}</span></a>)}
+  <span class="admin-navigation-spacer"></span>
+  <div class="admin-nav-avatar" aria-label={workspace?.name || "Wedding Suite"}>{initials}</div>
 </nav>

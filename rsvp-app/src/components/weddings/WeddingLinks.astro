@@ -1,0 +1,66 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import { couplePath } from "../../lib/weddingAccessServer";
+import CopyLink from "./CopyLink.astro";
+interface Props { wedding: WeddingRow; }
+const { wedding } = Astro.props;
+const version = wedding.settings?.couple_access_version;
+const path = typeof version === "string" ? couplePath(wedding.id, version) : "";
+const url = path ? new URL(path, Astro.url.origin).href : "";
+---
+<section class="wedding-links grid gap-4 rounded-2xl border border-slate-200 bg-white p-5" data-wedding-id={wedding.id}>
+  <div>
+    <h3 class="text-sm font-semibold text-slate-900">Acceso para los novios</h3>
+    <p class="mt-1 text-xs text-slate-500">Enlace privado para gestionar los invitados, la información y el formulario de esta boda.</p>
+    <div class="copy-link mt-3 flex flex-wrap items-center gap-2" data-couple-link hidden={!url}>
+      <button type="button" data-copy-url={url} class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold">Copiar acceso para novios</button>
+      <a href={url} target="_blank" rel="noreferrer" class="text-xs text-slate-500 underline">Abrir</a>
+      <span class="copy-status text-xs text-emerald-700" role="status"></span>
+    </div>
+    <button type="button" data-generate-access data-renew={Boolean(url).toString()} class="mt-3 text-sm font-semibold text-emerald-700 underline">{url ? "Renovar enlace de acceso" : "Crear enlace para los novios"}</button>
+    <p class="mt-1 text-xs text-slate-500">Renovar el enlace desactiva el anterior.</p>
+    <p data-access-status class="mt-2 text-xs text-slate-600" role="status"></p>
+  </div>
+  <div class="border-t border-slate-100 pt-4">
+    <h3 class="mb-2 text-sm font-semibold text-slate-900">Invitación para los invitados</h3>
+    {wedding.slug && <CopyLink path={`/i/${wedding.slug}`} label="Copiar enlace de invitación" />}
+    {!wedding.is_published && <p class="mt-2 text-xs text-amber-700">Publica la boda para que los invitados puedan abrir la invitación.</p>}
+  </div>
+</section>
+<script>
+  document.addEventListener("click", async (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-generate-access]");
+    if (!button || button.disabled) return;
+    const root = button.closest<HTMLElement>(".wedding-links");
+    if (!root) return;
+    const renew = button.dataset.renew === "true";
+    if (renew && !window.confirm("¿Renovar el enlace? El acceso anterior dejará de funcionar.")) return;
+    const status = root.querySelector<HTMLElement>("[data-access-status]");
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/weddings/${root.dataset.weddingId}/access`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ renew }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo crear el enlace.");
+      const url = new URL(data.path, window.location.origin).href;
+      const links = root.querySelector<HTMLElement>("[data-couple-link]");
+      const copy = links?.querySelector<HTMLButtonElement>("[data-copy-url]");
+      const anchor = links?.querySelector("a");
+      if (links) links.hidden = false;
+      if (copy) copy.dataset.copyUrl = url;
+      if (anchor) anchor.href = url;
+      const fallbackInput = links?.querySelector("input");
+      if (fallbackInput) fallbackInput.value = url;
+      const copyStatus = links?.querySelector(".copy-status");
+      if (copyStatus) copyStatus.textContent = "";
+      button.dataset.renew = "true";
+      button.textContent = "Renovar enlace de acceso";
+      if (status) status.textContent = "Enlace listo. Pulsa «Copiar acceso para novios» para compartirlo.";
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "No se pudo crear el enlace.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

@@ -1,0 +1,42 @@
+---
+import AdminFrame from "@/layouts/AdminFrame.astro";
+import GuestManager from "@/components/weddings/GuestManager.astro";
+import DashboardHome from "@/components/dashboard/DashboardHome";
+import WeddingSectionPicker from "@/components/weddings/WeddingSectionPicker.astro";
+import TemplateCatalogue from "@/components/weddings/TemplateCatalogue.astro";
+import { weddingSection } from "@/lib/nav";
+import { handleGuestAction } from "@/lib/guestManagementServer";
+import { isSameOrigin } from "@/lib/weddingAccessServer";
+import { adminDatabase } from "../../tests/fixtures/adminDatabase.mjs";
+if(!import.meta.env.DEV)return new Response(null,{status:404});
+const key=Symbol.for("rsvp.admin.visual.fixture");
+if(!globalThis[key] || Astro.url.searchParams.has("reset"))globalThis[key]=adminDatabase();
+const db=globalThis[key];
+let error="";
+if(Astro.request.method==="POST"){
+  if(!isSameOrigin(Astro.request,Astro.url))return new Response("Origen no permitido",{status:403});
+  try{await handleGuestAction(db,"visual-wedding",await Astro.request.formData());return Astro.redirect("/admin-visual-check?saved=1",303);}
+  catch(exception){error=exception.message;}
+}
+const dashboard=Astro.url.searchParams.get("screen")==="dashboard";
+const picker=Astro.url.searchParams.get("screen")==="picker";
+const section=weddingSection(Astro.url.searchParams.get("section")) || "guests";
+const guests=db.tables.guests.map(guest=>({...guest,rsvps:db.tables.rsvps.filter(rsvp=>rsvp.guest_id===guest.id)}));
+const primary=guests.filter(guest=>guest.is_primary || !guest.primary_guest_id);
+const workspace={id:"workspace-check",name:"Estudio de celebraciones",slug:"estudio"};
+const weddings=[
+  {id:"w1",title:"Elena & Gabriel",slug:"elena-gabriel",event_date:"2027-06-12",is_published:true},
+  {id:"w2",title:"Valentina & Nicolás",slug:"valentina-nicolas",event_date:"2027-07-24",is_published:true},
+  {id:"w3",title:"María & Sebastián",slug:"maria-sebastian",event_date:"2027-09-04",is_published:false},
+  {id:"w4",title:"Julia & Daniel",slug:"julia-daniel",event_date:"2027-10-16",is_published:false},
+];
+const catalogueWeddings=Astro.url.searchParams.has("no-weddings")?[]:Astro.url.searchParams.has("single-wedding")?weddings.slice(0,1):weddings;
+---
+<AdminFrame title="Verificación del panel" mode={dashboard || picker?"planner":"couple"} couplePath="/admin-visual-check" currentPath={picker?"/weddings":"/dashboard"} workspace={dashboard || picker?workspace:{name:"Elena & Gabriel"}} sidebarStats={{published:2,drafts:2,rsvpToday:3}} summary={dashboard || picker?undefined:[{label:"Invitaciones",value:primary.length},{label:"Confirmadas",value:1},{label:"Pendientes",value:primary.length-2}]} progress={dashboard || picker?undefined:{label:"Confirmaciones recibidas",done:1,total:primary.length}} eventDate={dashboard || picker?null:"2027-06-12"}>
+  {dashboard?<DashboardHome client:load initialWorkspace={workspace} initialWeddings={weddings as any} initialStatsByWedding={{w1:{confirmed:36,pending:12,declined:2},w2:{confirmed:18,pending:20,declined:3}}} initialRecentRsvps={[{id:"r1",guest_name:"Camila Rosario",status:"confirmed",updated_at:new Date().toISOString()},{id:"r2",guest_name:"Lucía de la Cruz",status:"declined",updated_at:new Date().toISOString()}]} />:picker?(section==="templates"?<TemplateCatalogue weddings={catalogueWeddings as any} />:<WeddingSectionPicker weddings={weddings as any} section={section} />):<div>
+    <header class="couple-overview"><span class="admin-kicker">El espacio de nuestra boda</span><h1>Elena & Gabriel</h1><p>Los detalles, las personas y los momentos que harán único nuestro gran día.</p></header>
+    {error && <p class="admin-notice admin-notice-error" data-page-error role="alert">{error}</p>}
+    {Astro.url.searchParams.has("saved") && !error && <p class="admin-notice" role="status">Cambios guardados.</p>}
+    <GuestManager guests={guests} weddingId="visual-wedding" weddingTitle="Elena & Gabriel" slug="elena-gabriel" compact />
+  </div>}
+</AdminFrame>

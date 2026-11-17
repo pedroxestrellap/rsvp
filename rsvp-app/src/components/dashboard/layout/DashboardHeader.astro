@@ -1,23 +1,5 @@
-<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-  <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-10">
-    <!-- izquierda -->
-    <div class="flex items-center gap-3">
-      <div class="grid h-10 w-10 place-items-center rounded-full bg-emerald-600 text-white font-semibold lg:hidden">
-        W
-      </div>
-      <div class="lg:hidden">
-        <p class="text-sm font-semibold text-slate-900">Wedding Suite</p>
-        <p class="text-xs text-slate-500">Planner</p>
-      </div>
-    </div>
-
-    <!-- derecha: tu botón drawer ☰ -->
-    <button
-      class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 lg:hidden"
-      aria-label="Abrir menú"
-      onclick="window.__ws_openDrawer?.()"
-    >
-      ☰
-    </button>
-  </div>
-</header>
+---
+import AdminIcon from "../../ui/AdminIcon.astro";
+const {mode="planner",workspaceName="Wedding Suite"}=Astro.props;
+---
+<header class="admin-header"><div class="admin-header-identity"><button type="button" class="admin-icon-button admin-menu-trigger" data-open-admin-menu aria-label="Abrir menú" aria-haspopup="dialog"><AdminIcon name="grid" /></button><a href={mode==="couple"?"#admin-main":"/dashboard"} class="admin-wordmark">Wedding<span>Suite</span></a><span class="admin-header-section">{mode==="couple"?"Nuestra boda":"Planner"}</span></div><div class="admin-header-right"><span class="admin-header-date">{new Date().toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"})}</span><span class="admin-header-workspace">{workspaceName}</span></div></header>

@@ -13,7 +13,7 @@ function slugify(input: string) {
 export async function listWeddingsByWorkspace(supabase: SupabaseClient, workspaceId: string) {
   const { data, error } = await supabase
     .from("weddings")
-    .select("id, workspace_id, slug, title, event_date, theme_id, settings, is_published, created_at")
+    .select("id, workspace_id, slug, title, event_date, rsvp_deadline, theme_id, settings, is_published, created_at")
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false });
 
@@ -24,7 +24,7 @@ export async function listWeddingsByWorkspace(supabase: SupabaseClient, workspac
 export async function getWeddingById(supabase: SupabaseClient, weddingId: string) {
   const { data, error } = await supabase
     .from("weddings")
-    .select("id, workspace_id, slug, title, event_date, theme_id, settings, is_published, created_at")
+    .select("id, workspace_id, slug, title, event_date, rsvp_deadline, timezone, theme_id, settings, is_published, created_at")
     .eq("id", weddingId)
     .maybeSingle();
 
@@ -34,7 +34,7 @@ export async function getWeddingById(supabase: SupabaseClient, weddingId: string
 
 export async function createWedding(supabase: SupabaseClient, workspaceId: string, input: WeddingInput) {
   const title = input.title?.trim() || "Nueva boda";
-  const slug = slugify(title) || "boda";
+  const slug = `${slugify(title) || "boda"}-${crypto.randomUUID().slice(0, 8)}`;
 
   const { data, error } = await supabase
     .from("weddings")
@@ -43,7 +43,7 @@ export async function createWedding(supabase: SupabaseClient, workspaceId: strin
       title,
       slug,
       event_date: input.event_date ?? null,
-      theme_id: input.theme_id ?? null,
+      ...(input.theme_id ? { theme_id: input.theme_id } : {}),
       settings: input.settings ?? {},
       is_published: false,
     })
@@ -64,13 +64,13 @@ export async function updateWedding(
   // title (si viene y no está vacío)
   if (typeof input.title === "string" && input.title.trim().length > 0) {
     patch.title = input.title.trim();
-    patch.slug = slugify(input.title);
   }
 
   // event_date (si viene: permite null explícito si tú quieres borrar fecha)
   if ("event_date" in input) {
     patch.event_date = input.event_date ?? null;
   }
+  if ("rsvp_deadline" in input) patch.rsvp_deadline = input.rsvp_deadline ?? null;
 
   // settings (si viene)
   if ("settings" in input && input.settings !== undefined) {

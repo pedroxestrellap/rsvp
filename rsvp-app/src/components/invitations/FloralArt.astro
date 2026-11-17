@@ -1,0 +1,8 @@
+---
+interface Props { name: string; class?: string; }
+const { name, class: className } = Astro.props;
+const sizes: Record<string, string> = { lily: "0 0 300 520", estate: "0 0 700 300", attire: "0 0 700 240", ornament: "0 0 400 90", seal: "0 0 100 100" };
+---
+{name === "lily" ? <img class:list={["floral-art", className]} src="/templates/floral-romance/white-lilies.webp" alt="" width="600" height="1293" aria-hidden="true" /> : <svg class:list={["floral-art", className]} viewBox={sizes[name] ?? "0 0 140 140"} fill="none" aria-hidden="true" focusable="false">
+  <use href={`/templates/floral-romance/engravings.svg#${name}`} />
+</svg>}

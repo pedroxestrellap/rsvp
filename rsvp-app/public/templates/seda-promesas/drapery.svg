@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="1200" viewBox="0 0 700 1200" fill="none">
+ <defs>
+  <linearGradient id="veil"><stop stop-color="#FFFCF6" stop-opacity=".25"/><stop offset=".16" stop-color="#FFFCF6" stop-opacity=".93"/><stop offset=".24" stop-color="#77766E" stop-opacity=".15"/><stop offset=".31" stop-color="#FFFCF6" stop-opacity=".86"/><stop offset=".5" stop-color="#FFF9F0" stop-opacity=".18"/><stop offset=".64" stop-color="#FFFCF6" stop-opacity=".87"/><stop offset=".71" stop-color="#77766E" stop-opacity=".13"/><stop offset=".8" stop-color="#FFFCF6" stop-opacity=".9"/><stop offset="1" stop-color="#FFFCF6" stop-opacity=".2"/></linearGradient>
+  <pattern id="weave" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0h4M0 2h4M0 0v4m2-4v4" stroke="#FFFCF6" stroke-opacity=".28" stroke-width=".35"/></pattern>
+ </defs>
+ <path d="M-100-10H280C139 159 217 320 145 463 45 661 222 927 378 1210H-100Z" fill="url(#veil)"/>
+ <path d="M800-10H420C561 159 483 320 555 463 655 661 478 927 322 1210H800Z" fill="url(#veil)"/>
+ <g stroke="#FFFCF6" stroke-opacity=".7" stroke-width="2"><path d="M83-10C23 221 139 371 80 557S69 917 315 1210M112-10C42 209 167 378 105 565S87 917 334 1210M168-10C87 216 195 379 149 540S154 932 371 1210M617-10c60 231-56 381 3 567s11 360-235 653M588-10c70 219-55 388 7 575s18 352-229 645M532-10c81 226-27 389 19 550s-5 392-222 670"/></g>
+ <path fill="url(#weave)" d="M0 0h700v1200H0z"/>
+</svg>

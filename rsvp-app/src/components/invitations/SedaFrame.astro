@@ -1,0 +1,11 @@
+---
+interface Props { variant?: "oval" | "program"; class?: string; }
+const { variant = "oval", class: className } = Astro.props;
+---
+<div class:list={["seda-frame", `seda-frame-${variant}`, className]}>
+  <div class="seda-frame-rails" aria-hidden="true"></div>
+  <img class="seda-frame-crest seda-frame-crest-top" src={`/templates/seda-promesas/${variant === "oval" ? "frame-oval-crest" : "frame-crest"}.svg`} alt="" width="500" height="150" />
+  <img class="seda-frame-crest seda-frame-crest-bottom" src={`/templates/seda-promesas/${variant === "oval" ? "frame-oval-crest" : "frame-crest"}.svg`} alt="" width="500" height="150" />
+  {variant === "oval" && <><img class="seda-frame-acanthus seda-frame-acanthus-left" src="/templates/seda-promesas/frame-acanthus.svg" alt="" width="100" height="220" /><img class="seda-frame-acanthus seda-frame-acanthus-right" src="/templates/seda-promesas/frame-acanthus.svg" alt="" width="100" height="220" /></>}
+  <div class="seda-frame-content"><slot /></div>
+</div>

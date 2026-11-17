@@ -1,0 +1,23 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+interface Props { wedding: WeddingRow; }
+const { wedding } = Astro.props;
+const settings = wedding.settings ?? {};
+const safeUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined;
+---
+<div class="invitation-details">
+  <div class="invitation-events">
+    {[{ title: "La ceremonia", prefix: "ceremony", number: "01" }, { title: "La celebración", prefix: "reception", number: "02" }].map(({ title, prefix, number }) =>
+      (settings[`${prefix}_venue`] || settings[`${prefix}_time`] || settings[`${prefix}_address`]) && <section class="invitation-event">
+        <span class="invitation-eyebrow">{number} / {prefix === "ceremony" ? "Ceremonia" : "Recepción"}</span>
+        <h2>{title}</h2>
+        {settings[`${prefix}_time`] && <p class="event-time">{settings[`${prefix}_time`]}</p>}
+        <p class="event-venue">{settings[`${prefix}_venue`]}</p>
+        <p class="event-address">{settings[`${prefix}_address`]}</p>
+        {safeUrl(settings[`${prefix}_map_url`]) && <a class="invitation-map" href={safeUrl(settings[`${prefix}_map_url`])} target="_blank" rel="noreferrer">Ver ubicación ↗</a>}
+      </section>)}
+  </div>
+  {[{ name: "dress_code", title: "El arte de celebrar", label: "Vestimenta" }, { name: "gifts", title: "Con todo nuestro cariño", label: "Regalos" }, { name: "additional_information", title: "Los pequeños detalles", label: "Información adicional" }].map(({ name, title, label }) => settings[name] &&
+    <section class="invitation-note"><span class="invitation-eyebrow">{label}</span><h2>{title}</h2><p>{settings[name]}</p></section>)}
+  {(settings.contact_name || settings.contact_phone) && <section class="invitation-note"><span class="invitation-eyebrow">Estamos para ayudarte</span><h2>¿Tienes alguna pregunta?</h2><p>{settings.contact_name}<br />{settings.contact_phone}</p></section>}
+</div>

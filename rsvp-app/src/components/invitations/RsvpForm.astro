@@ -1,0 +1,117 @@
+---
+import type { WeddingRow } from "../../types/weddings";
+import type { InvitationGuest, InvitationCompanion } from "../../types/invitations";
+import { getRsvpSettings } from "../../lib/weddingSettings";
+interface Props {
+  wedding: Pick<WeddingRow, "title" | "slug" | "settings">;
+  guest?: InvitationGuest | null;
+  code?: string; companions?: InvitationCompanion[]; names?: string[];
+  initialStatus?: "confirmed" | "declined" | "pending";
+  closed?: boolean; preview?: boolean; backPath: string; embedded?: boolean;
+}
+const { wedding, guest = null, code = "", companions = [], names = [], initialStatus = "confirmed", closed = false, preview = false, backPath, embedded = false } = Astro.props;
+const config = getRsvpSettings(wedding.settings ?? {});
+const inputClass = "w-full rounded-xl border border-slate-200 bg-white p-3 text-slate-900";
+const slots: InvitationCompanion[] = Array.from({ length: Math.max(0, (guest?.max_seats ?? 1) - 1) }, (_, i) => companions[i] ?? { full_name: names[i] ?? "", attending: false });
+---
+{!embedded && <><a href={backPath} class="text-sm text-emerald-700 underline">← Ver invitación</a>
+<h1 class="mt-6 text-3xl font-semibold text-slate-900">{guest?.full_name ?? wedding.title}</h1></>}
+{!guest ? <p class="mt-6 text-slate-600" data-personal-link-required>Esta invitación es personal. Abre el enlace que te enviaron los novios para ver tu nombre y confirmar tu asistencia.</p> : <>
+  <p class="mt-3 whitespace-pre-line text-slate-600">{config.intro}</p>
+  {preview && <p class="mt-4 rounded-xl border border-slate-200 p-3 text-sm" role="status">Vista previa del formulario. Las respuestas de ejemplo no se guardan.</p>}
+  {closed ? <p class="mt-8 rounded-xl bg-amber-50 p-4 text-amber-800">El plazo para confirmar ha terminado. Contacta con los novios.</p> : <form id="rsvpForm" data-preview={String(preview)} class="mt-8 grid max-w-xl gap-5">
+    <input type="hidden" name="invite_code" value={code} />
+    <input type="hidden" name="slug" value={wedding.slug} />
+    <input type="hidden" name="status" value={initialStatus} />
+    <input type="hidden" name="seats_confirmed" value={1 + slots.filter(companion => companion.attending).length} />
+    {slots.length > 0 && <fieldset class="grid gap-3" data-attendance-fields>
+      <legend class="mb-3 text-xl font-medium">Tus acompañantes</legend>
+      <p id="companion-help" class="text-sm text-slate-600">Marca quiénes irán contigo. Deja sin marcar a quienes no asistirán.</p>
+      {slots.map((companion, i) => <div data-companion-row data-companion-id={companion.id ?? ""} data-companion-name={companion.full_name} class="rsvp-companion rounded-lg border border-slate-200 p-3">
+        <label class="flex min-h-11 cursor-pointer items-center gap-3">
+          <input type="checkbox" name="companion_attendance" value={i} checked={companion.attending === true} aria-describedby="companion-help" class="h-5 w-5 shrink-0 accent-emerald-700" />
+          <span data-companion-display-name>{companion.full_name || `Acompañante ${i + 1}`}</span>
+        </label>
+        {!companion.id && (config.ask_companion_names ? <label data-companion-name-field hidden={!companion.attending} class="mt-3 grid gap-2 text-sm">Nombre del acompañante {i + 1} (opcional)<input name="plus_ones" value={companion.full_name} class={inputClass} maxlength="200" disabled={!companion.attending} /></label> : <details data-companion-name-field hidden={!companion.attending} class="mt-3 text-sm"><summary class="cursor-pointer underline">Agregar nombre (opcional)</summary><label class="mt-3 grid gap-2">Nombre del acompañante {i + 1} (opcional)<input name="plus_ones" value={companion.full_name} class={inputClass} maxlength="200" disabled={!companion.attending} /></label></details>)}
+      </div>)}
+      <p class="text-sm text-slate-600" data-attendance-summary role="status">{1 + slots.filter(companion => companion.attending).length} {slots.some(companion => companion.attending) ? "personas seleccionadas, incluyéndote" : "persona: solo tú"}.</p>
+    </fieldset>}
+    {config.show_dietary && <label class="grid gap-2 text-sm">Restricciones alimentarias (opcional)<input name="dietary" class={inputClass} maxlength="2000" /></label>}
+    {config.show_message && <label class="grid gap-2 text-sm">Mensaje para los novios (opcional)<textarea name="message" class={inputClass} rows={3} maxlength="2000"></textarea></label>}
+    {config.custom_questions.map((question, i) => <label class="grid gap-2 text-sm">{question} (opcional)<input name={`custom_${i}`} class={inputClass} maxlength="1000" /></label>)}
+    <div class="rsvp-response-buttons flex flex-wrap gap-3">
+      <button type="submit" name="response" value="confirmed" class="rounded-xl bg-emerald-700 px-6 py-3 font-semibold text-white">Asistir</button>
+      <button type="submit" name="response" value="declined" formnovalidate class="rsvp-decline rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700">No asistir</button>
+    </div>
+    <p id="result" class="text-sm text-slate-700" role="status" aria-live="polite"></p>
+  </form>}
+</>}
+<script>
+  const form = document.querySelector<HTMLFormElement>("#rsvpForm");
+  const result = document.getElementById("result");
+  if (form && result) {
+    const rows = [...form.querySelectorAll<HTMLElement>("[data-companion-row]")];
+    const seats = form.elements.namedItem("seats_confirmed") as HTMLInputElement;
+    const status = form.elements.namedItem("status") as HTMLInputElement;
+    const buttons = [...form.querySelectorAll<HTMLButtonElement>("button[type=submit]")];
+    const updateFields = () => {
+      let count = 1;
+      rows.forEach(row => {
+        const checked = row.querySelector<HTMLInputElement>("[name=companion_attendance]")!.checked;
+        if (checked) count++;
+        const field = row.querySelector<HTMLElement>("[data-companion-name-field]");
+        if (field) field.hidden = !checked;
+        const input = row.querySelector<HTMLInputElement>("[name=plus_ones]");
+        if (input) input.disabled = !checked;
+      });
+      seats.value = String(count);
+      const summary = form.querySelector("[data-attendance-summary]");
+      if (summary) summary.textContent = count === 1 ? "1 persona: solo tú." : `${count} personas seleccionadas, incluyéndote.`;
+    };
+    form.addEventListener("change", updateFields);
+    updateFields();
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (buttons.some(button => button.disabled)) return;
+      const submitter = (event as SubmitEvent).submitter as HTMLButtonElement | null;
+      status.value = submitter?.value === "declined" ? "declined" : "confirmed";
+      if (form.dataset.preview === "true") {
+        result.textContent = "Esto es una vista previa. No se ha guardado ninguna respuesta.";
+        return;
+      }
+      buttons.forEach(button => button.disabled = true);
+      result.textContent = "Enviando...";
+      try {
+        const fd = new FormData(form);
+        const companions = rows.map(row => ({
+          id: row.dataset.companionId || undefined,
+          full_name: row.querySelector<HTMLInputElement>("[name=plus_ones]")?.value ?? row.dataset.companionName ?? "",
+          attending: status.value === "confirmed" && row.querySelector<HTMLInputElement>("[name=companion_attendance]")!.checked,
+        }));
+        const payload = { invite_code: fd.get("invite_code"), slug: fd.get("slug"), status: status.value,
+          seats_confirmed: status.value === "confirmed" ? 1 + companions.filter(companion => companion.attending).length : 0,
+          companions, dietary: status.value === "confirmed" ? fd.get("dietary") : "", message: fd.get("message"),
+          custom_answers: [...form.querySelectorAll<HTMLInputElement>("[name^=custom_]")].map(input => input.value) };
+        const response = await fetch("/api/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "No se pudo guardar la confirmación.");
+        if (Array.isArray(data.companions)) data.companions.forEach((companion: { id?: string; full_name: string }, i: number) => {
+          const row = rows[i];
+          if (!row || !companion.id) return;
+          row.dataset.companionId = companion.id;
+          row.dataset.companionName = companion.full_name;
+          const name = row.querySelector("[data-companion-display-name]");
+          if (name) name.textContent = companion.full_name;
+          row.querySelector("[data-companion-name-field]")?.remove();
+        });
+        if (status.value === "declined") {
+          rows.forEach(row => row.querySelector<HTMLInputElement>("[name=companion_attendance]")!.checked = false);
+          updateFields();
+        }
+        result.textContent = status.value === "declined" ? "Hemos registrado que no podrás asistir. Gracias por avisar." : "¡Listo! Tu respuesta se ha guardado.";
+      } catch (error) {
+        result.textContent = error instanceof Error ? error.message : "No se pudo enviar. Revisa tu conexión.";
+      } finally { buttons.forEach(button => button.disabled = false); }
+    });
+  }
+</script>

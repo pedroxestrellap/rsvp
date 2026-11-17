@@ -1,0 +1,33 @@
+---
+import InvitationLayout from "@/layouts/InvitationLayout.astro";
+import InvitationView from "@/components/invitations/InvitationView.astro";
+import RsvpForm from "@/components/invitations/RsvpForm.astro";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { getPlannerWedding, isSameOrigin } from "@/lib/weddingAccessServer";
+import { updateWedding } from "@/lib/weddingsServer";
+import { findWeddingTemplate } from "@/lib/weddingTemplates";
+const { id, templateId } = Astro.params;
+const template = findWeddingTemplate(templateId);
+if (!id || !template) return new Response("Template no encontrado", { status: 404 });
+const access = await getPlannerWedding(supabaseServer(Astro), id);
+if (!access) return new Response("Boda no encontrada", { status: 404 });
+Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
+Astro.response.headers.set("Referrer-Policy", "same-origin");
+if (Astro.request.method === "POST") {
+  if (!isSameOrigin(Astro.request, Astro.url)) return new Response("Origen no permitido", { status: 403 });
+  await updateWedding(access.supabase, id, { theme_id: template.id });
+  return Astro.redirect(`/weddings/${id}/templates?saved=1`, 303);
+}
+const wedding = { ...access.wedding, theme_id: template.id };
+const isRsvp = Astro.url.searchParams.get("screen") === "rsvp";
+const initialStatus = Astro.url.searchParams.get("status") === "declined" ? "declined" : "confirmed";
+const rsvpPath = `${Astro.url.pathname}?screen=rsvp`;
+const declinePath = `${rsvpPath}&status=declined`;
+---
+<InvitationLayout weddingTitle={`Vista previa · ${template.name}`} themeId={template.id} form={isRsvp}>
+  <div slot="toolbar" class="template-preview-toolbar">
+    <a href={`/weddings/${id}/templates`}>← Biblioteca</a><span><strong>{template.name}</strong> · Vista previa de {wedding.title}</span>
+    <div class="flex items-center gap-4"><a href={isRsvp ? Astro.url.pathname : rsvpPath}>{isRsvp ? "Ver invitación" : "Ver formulario"}</a><form method="POST"><button>Usar este template</button></form></div>
+  </div>
+  {isRsvp ? <RsvpForm wedding={wedding} guest={{ full_name: "Invitado de ejemplo", max_seats: 3 }} preview initialStatus={initialStatus} backPath={Astro.url.pathname} /> : <InvitationView wedding={wedding} rsvpPath={rsvpPath} declinePath={declinePath} guest={{ full_name: "Invitado de ejemplo", max_seats: 3 }} rsvp={{ preview: true }} />}
+</InvitationLayout>

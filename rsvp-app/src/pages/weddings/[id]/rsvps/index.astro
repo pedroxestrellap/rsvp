@@ -3,10 +3,13 @@ import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { listGuestsWithRsvpByWedding } from "@/lib/guestsRsvpsServer";
 import { RsvpManager } from "@/components/rsvps/RsvpManager";
+import { getPlannerWedding } from "@/lib/weddingAccessServer";
 
-const supabase = supabaseServer(Astro);
 const { id } = Astro.params;
 if (!id) throw new Error("Missing wedding id");
+const access = await getPlannerWedding(supabaseServer(Astro), id);
+if (!access) return new Response("Boda no encontrada", { status: 404 });
+const { supabase } = access;
 
 const guests = await listGuestsWithRsvpByWedding(supabase, id);
 ---

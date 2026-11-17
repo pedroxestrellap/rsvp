@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
 
 type Wedding = {
   id: string;
@@ -39,7 +39,7 @@ export default function WeddingsList() {
     <div className="grid gap-3">
       {items.map((w) => (
         <a key={w.id} className="block border rounded bg-white p-4 hover:bg-gray-50"
-          href={`/wedding/${w.id}`}>
+          href={`/weddings/${w.id}`}>
           <div className="font-semibold">{w.title}</div>
           <div className="text-sm opacity-70">
             {w.event_date ?? ""} · {w.is_published ? "Publicado" : "Borrador"}

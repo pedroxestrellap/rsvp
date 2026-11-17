@@ -1,0 +1,69 @@
+---
+interface Props { partnerOne?: string; partnerTwo?: string; title: string | null; date?: string; }
+const { partnerOne, partnerTwo, title, date } = Astro.props;
+const point = (angle: number) => ({ x: 220 + 11 * 16 * Math.sin(angle) ** 3,
+  y: 174 - 11 * (13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle)) });
+const outline = Array.from({ length: 200 }, (_, i) => point(i * Math.PI * 2 / 200));
+const path = outline.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ") + "Z";
+const lace = Array.from({ length: 100 }, (_, i) => {
+  const angle = i * Math.PI * 2 / 100, p = point(angle), before = point(angle - .01), after = point(angle + .01);
+  return { ...p, rotation: Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI };
+});
+const longNames = Math.max(partnerOne?.length ?? 0, partnerTwo?.length ?? 0, (!partnerOne || !partnerTwo) ? title?.length ?? 0 : 0) > 17;
+---
+<div class:list={["seda-heart", longNames && "seda-heart-long-names"]}>
+  <svg class="seda-heart-lace" viewBox="0 0 440 420" fill="none" aria-hidden="true">
+    <g stroke="var(--wedding-paper, #FFFCF6)">{lace.map(({ x, y, rotation }) => <g transform={`translate(${x} ${y}) rotate(${rotation})`}>
+      <path d="M0 0c-12-4-13-25-2-29 10-3 17 17 2 29ZM0 0c-20-2-26-17-17-23C-6-28 0-10 0 0ZM0 0c12-11 30-6 25 5-4 9-21 6-25-5Z" stroke-width="1.2" />
+      <path d="M0 0-2-25M0 0l-15-20M0 0l21 5" stroke-width=".7" /><circle cx="-2" cy="-30" r="1.8" fill="var(--wedding-paper, #FFFCF6)" />
+    </g>)}</g>
+    <path d={path} fill="var(--wedding-paper, #FFFCF6)" stroke="var(--wedding-paper, #FFFCF6)" stroke-width="9" />
+    <path class="seda-heart-paper" d={path} transform="translate(220 210) scale(.92) translate(-220 -210)" stroke="var(--wedding-butter, #FAEDA1)" stroke-width="2" />
+    <path d={path} transform="translate(220 210) scale(.87) translate(-220 -210)" stroke="var(--wedding-sage, #ABBD98)" stroke-opacity=".65" stroke-width="1.2" />
+  </svg>
+  <h1 class="seda-heart-inscription" tabindex="-1" data-invitation-title>
+    <span class="sr-only">{partnerOne && partnerTwo ? `${partnerOne} & ${partnerTwo}` : title}</span>
+    <svg class="seda-heart-lettering" viewBox="0 0 440 420" aria-hidden="true" focusable="false">
+      {partnerOne && partnerTwo ? <>
+        <text x="220" y="163" text-anchor="middle" data-heart-text data-center-x="220" data-center-y="163" data-max-width="260" data-max-height="42">{partnerOne}</text>
+        <text class="seda-heart-ampersand" x="329" y="195" text-anchor="middle" data-heart-text data-center-x="329" data-center-y="195" data-max-width="20" data-max-height="16">&amp;</text>
+        <text x="220" y="220" text-anchor="middle" data-heart-text data-center-x="220" data-center-y="220" data-max-width="185" data-max-height="40">{partnerTwo}</text>
+      </> : <text x="220" y="190" text-anchor="middle" data-heart-text data-center-x="220" data-center-y="190" data-max-width="220" data-max-height="65">{title}</text>}
+    </svg>
+  </h1>
+  {date && <p class="seda-heart-date"><span class="sr-only">{date}</span><svg class="seda-heart-lettering" viewBox="0 0 440 420" aria-hidden="true" focusable="false">
+    <text x="220" y="270" text-anchor="middle" data-heart-text data-center-x="220" data-center-y="270" data-max-width="90" data-max-height="18">{date}</text>
+  </svg></p>}
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>(".seda-heart").forEach(heart => {
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) return;
+    context.textAlign = "center";
+    const measure = (text: SVGTextElement) => {
+      const style = getComputedStyle(text);
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      return context.measureText(text.textContent ?? "");
+    };
+    const fit = () => {
+      heart.querySelectorAll<SVGTextElement>("[data-heart-text]").forEach(text => {
+        // Measure the actual calligraphic ink, including flourishes and descenders.
+        text.style.removeProperty("font-size");
+        const baseSize = parseFloat(getComputedStyle(text).fontSize);
+        const initial = measure(text);
+        const width = initial.actualBoundingBoxLeft + initial.actualBoundingBoxRight;
+        const height = initial.actualBoundingBoxAscent + initial.actualBoundingBoxDescent;
+        if (!width || !height) return;
+        const scale = Math.min(1, Number(text.dataset.maxWidth) / width, Number(text.dataset.maxHeight) / height);
+        text.style.fontSize = `${baseSize * scale}px`;
+        // Advance widths and font line boxes do not center the visible italic ink.
+        const bounds = measure(text);
+        text.setAttribute("x", String(Number(text.dataset.centerX) + (bounds.actualBoundingBoxLeft - bounds.actualBoundingBoxRight) / 2));
+        text.setAttribute("y", String(Number(text.dataset.centerY) + (bounds.actualBoundingBoxAscent - bounds.actualBoundingBoxDescent) / 2));
+      });
+    };
+    fit();
+    void document.fonts.ready.then(fit);
+    document.fonts.addEventListener("loadingdone", fit);
+  });
+</script>

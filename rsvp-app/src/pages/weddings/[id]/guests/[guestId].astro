@@ -3,12 +3,15 @@ import DashboardLayout from "../../../../layouts/DashboardLayout.astro";
 import { supabaseServer } from "../../../../lib/supabaseServer";
 import { getGuestWithRsvp, getGuestGroup } from "../../../../lib/guestsServer";
 import { upsertRsvpForGuest } from "../../../../lib/rsvpsServer";
+import { getPlannerWedding, isSameOrigin } from "../../../../lib/weddingAccessServer";
 
-const supabase = supabaseServer(Astro);
 const { id, guestId } = Astro.params;
 
 if (!id) throw new Error("Missing wedding id");
 if (!guestId) throw new Error("Missing guestId");
+const access = await getPlannerWedding(supabaseServer(Astro), id);
+if (!access) return new Response("Boda no encontrada", { status: 404 });
+const { supabase } = access;
 
 let guest = await getGuestWithRsvp(supabase, guestId);
 if (!guest) throw new Error("Guest not found");
@@ -19,8 +22,10 @@ if (guest.wedding_id !== id) throw new Error("Guest not in this wedding");
 let group = await getGuestGroup(supabase, guest);
 
 const currentRsvp = Array.isArray(guest.rsvps) ? guest.rsvps[0] : null;
+let errorMessage = "";
 
 if (Astro.request.method === "POST") {
+  if (!isSameOrigin(Astro.request, Astro.url)) return new Response("Origen no permitido", { status: 403 });
   const form = await Astro.request.formData();
   const action = String(form.get("action") ?? "");
 
@@ -31,9 +36,10 @@ if (Astro.request.method === "POST") {
     const seats_confirmed =
       seatsRaw === "" ? null : Number.isNaN(Number(seatsRaw)) ? null : Number(seatsRaw);
 
-    await upsertRsvpForGuest(supabase, guestId, { status, seats_confirmed });
-
-    return Astro.redirect(`/weddings/${id}/guests/${guestId}`);
+    try {
+      await upsertRsvpForGuest(supabase, guestId, { status, seats_confirmed });
+      return Astro.redirect(`/weddings/${id}/guests/${guestId}`, 303);
+    } catch (error) { errorMessage = error instanceof Error ? error.message : "No se pudo guardar el RSVP."; }
   }
 }
 
@@ -47,7 +53,7 @@ group = await getGuestGroup(supabase, guest);
       <div>
         <h1 class="text-xl font-semibold text-slate-900">{guest.full_name}</h1>
         <p class="mt-1 text-sm text-slate-500">
-          Max seats: {guest.max_seats ?? "—"} · Invite code: {guest.invite_code ?? "—"}
+          Cupo total: {guest.max_seats ?? "—"} · Código de invitación: {guest.invite_code ?? "—"}
         </p>
       </div>
 
@@ -59,16 +65,19 @@ group = await getGuestGroup(supabase, guest);
       </a>
     </div>
 
+    {errorMessage && <p class="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700" role="alert">{errorMessage}</p>}
+    <a class="mt-4 inline-block text-sm text-emerald-700 underline" href={`/weddings/${id}/guests`}>Editar invitado y acompañantes →</a>
+
     <!-- RSVP Card -->
     <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 class="text-sm font-semibold text-slate-900">RSVP</h2>
-      <p class="mt-1 text-sm text-slate-500">Edita status y seats_confirmed.</p>
+      <p class="mt-1 text-sm text-slate-500">Edita la respuesta y el número de personas confirmadas.</p>
 
       <form method="POST" class="mt-4 grid gap-4">
         <input type="hidden" name="action" value="save_rsvp" />
 
         <div>
-          <label class="text-xs text-slate-500">Status</label>
+          <label class="text-xs text-slate-500">Estado</label>
           <select name="status" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
             <option value="pending" selected={(currentRsvp?.status ?? "pending") === "pending"}>Pendiente</option>
             <option value="confirmed" selected={currentRsvp?.status === "confirmed"}>Confirmado</option>
@@ -78,7 +87,7 @@ group = await getGuestGroup(supabase, guest);
 
         <div>
           <label class="text-xs text-slate-500">
-            Seats confirmed (máx. {guest.max_seats ?? "—"})
+            Personas confirmadas (máx. {guest.max_seats ?? "—"})
           </label>
           <input
             name="seats_confirmed"
@@ -112,7 +121,7 @@ group = await getGuestGroup(supabase, guest);
             <div>
               <div class="text-sm font-semibold text-slate-900">{g.full_name}</div>
               <div class="mt-1 text-xs text-slate-500">
-                {g.is_primary ? "Primary" : "Acompañante"} · Max seats: {g.max_seats ?? "—"}
+                {g.is_primary ? "Principal" : "Acompañante"} · Cupo: {g.max_seats ?? "—"}
               </div>
             </div>
             <span class="text-xs font-semibold text-slate-500">Ver →</span>
