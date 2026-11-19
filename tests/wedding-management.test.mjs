@@ -61,6 +61,9 @@ function database(seed = {}) {
             }
             tables[table] = tables[table].filter(row => !rows.includes(row));
           } else if (action === "upsert") {
+            if (table === "rsvps" && values.seats_confirmed === null) {
+              return { data: null, error: { code: "23502", message: "null value in column seats_confirmed violates not-null constraint" } };
+            }
             const row = tables[table].find(row => row.guest_id === values.guest_id);
             if (row) Object.assign(row, values);
             else tables[table].push({ id: randomUUID(), ...values });
@@ -352,7 +355,9 @@ test("personal links resolve only their wedding and restore individually selecte
   assert.equal(db.tables.rsvps.find(row=>row.guest_id==="g1").seats_confirmed,2,"Server derives seats from checks");
   assert.equal(db.tables.rsvps.find(row=>row.guest_id==="c1").status,"declined");
   assert.equal(db.tables.rsvps.find(row=>row.guest_id==="c2").status,"confirmed");
-  assert.equal(db.tables.rsvps.find(row=>row.guest_id==="c2").seats_confirmed,null,"Group total belongs only to primary");
+  assert.equal(db.tables.rsvps.find(row=>row.guest_id==="c1").seats_confirmed,0);
+  assert.equal(db.tables.rsvps.find(row=>row.guest_id==="c2").seats_confirmed,0,"Companion seats must be non-null without counting the group twice");
+  assert.equal(db.tables.rsvps.reduce((total,row)=>total+row.seats_confirmed,0),2);
   assert.equal(db.tables.guests.find(row=>row.id==="c1").full_name,"Primera persona");
   const personal = await getInvitationGuest(db,"w1","code");
   assert.equal(personal.guest.full_name,"Invitado");
@@ -362,7 +367,9 @@ test("personal links resolve only their wedding and restore individually selecte
   await submitRsvp(db,{slug:"boda",invite_code:"code",status:"declined",companions:[{id:"c1",attending:false},{id:"c2",attending:true}]});
   assert.equal(db.tables.guests.length,3);
   assert.ok(db.tables.rsvps.every(row=>row.status==="declined"));
-  assert.equal(db.tables.rsvps.find(row=>row.guest_id==="g1").seats_confirmed,0);
+  assert.ok(db.tables.rsvps.every(row=>row.seats_confirmed===0));
+  await submitRsvp(db,{slug:"boda",invite_code:"code",status:"pending",companions:[]});
+  assert.ok(db.tables.rsvps.every(row=>row.status==="pending" && row.seats_confirmed===0));
 });
 
 test("companion checks reject foreign IDs, duplicates, invalid selections and over-capacity before writing", async () => {

@@ -156,6 +156,23 @@ try {
   assert.equal(declined.seats_confirmed, 0);
   assert.equal((await check(admin.from("guests").select("id").eq("wedding_id", weddingId))).length, 2);
 
+  // Exercise the current checkbox flow against the real NOT NULL constraint.
+  const companion = await check(admin.from("guests").select("id").eq("wedding_id", weddingId).eq("is_primary", false).single());
+  for (const status of ["confirmed", "declined"]) {
+    response = await fetch(`${origin}/api/rsvp`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, invite_code: guest.invite_code, status, companions: [{ id: companion.id, attending: true }] }) });
+    assert.equal(response.status, 200, await response.text());
+    const responses = await check(admin.from("rsvps").select("guest_id, status, seats_confirmed").in("guest_id", [guest.id, companion.id]));
+    assert.equal(responses.length, 2);
+    assert.ok(responses.every(row => row.status === status));
+    assert.equal(responses.find(row => row.guest_id === companion.id).seats_confirmed, 0);
+    assert.equal(responses.reduce((total, row) => total + row.seats_confirmed, 0), status === "confirmed" ? 2 : 0);
+    response = await fetch(`${origin}/i/${slug}?code=${guest.invite_code}`);
+    assert.equal(response.status, 200);
+    const personalHtml = await response.text();
+    assert.match(personalHtml, new RegExp(`data-companion-id="${companion.id}"`));
+  }
+
   const beforeTemplate = await check(admin.from("weddings").select("*").eq("id", weddingId).single());
   const guestsBefore = await check(admin.from("guests").select("*").eq("wedding_id", weddingId).order("id"));
   const rsvpBefore = await check(admin.from("rsvps").select("*").eq("guest_id", guest.id).single());

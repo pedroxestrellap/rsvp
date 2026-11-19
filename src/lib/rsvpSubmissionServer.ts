@@ -79,10 +79,11 @@ export async function submitRsvp(supabase: SupabaseClient, body: Record<string, 
     }
     for (const companion of companions) {
       // The primary RSVP holds the group total. Companion rows hold individual
-      // status, just as in RsvpManager; null avoids counting group seats twice.
+      // status and zero seats to avoid counting the group total twice. The
+      // database requires a non-null seats_confirmed value.
       const companionStatus = status === "confirmed" ? (attendingIds.has(companion.id) ? "confirmed" : "declined") : status;
       const { error: companionError } = await supabase.from("rsvps").upsert({ guest_id: companion.id,
-        status: companionStatus, seats_confirmed: null, updated_at: new Date().toISOString() }, { onConflict: "guest_id" });
+        status: companionStatus, seats_confirmed: 0, updated_at: new Date().toISOString() }, { onConflict: "guest_id" });
       if (companionError) throw new Error("No se pudo guardar la confirmación de tus acompañantes.");
     }
   }
