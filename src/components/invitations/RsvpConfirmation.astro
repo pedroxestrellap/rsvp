@@ -1,0 +1,8 @@
+---
+interface Props { confirmed?: boolean; }
+const { confirmed = false } = Astro.props;
+---
+<aside class="rsvp-confirmation" data-rsvp-confirmation hidden={!confirmed} role="status" aria-live="polite" aria-atomic="true" tabindex="-1">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m7 12 3 3 7-7" /></svg>
+  <div><p class="rsvp-confirmation-title">¡Tu asistencia está confirmada!</p><p>Gracias por confirmar. ¡Te esperamos para celebrar juntos!</p></div>
+</aside>

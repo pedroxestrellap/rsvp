@@ -25,6 +25,10 @@
 .invitation-shell .invitation-recipient { padding: 24px; text-align: center; background: var(--paper); border-bottom: 1px solid var(--line); }
 .invitation-shell .invitation-recipient > p:first-child { font-size: 14px; }
 .invitation-shell .invitation-recipient-name { font-size: clamp(26px, 6vw, 40px); line-height: 1.2; margin-top: 8px; overflow-wrap: anywhere; }
+.invitation-shell .rsvp-confirmation { display: flex; align-items: center; gap: 14px; margin: 0 0 24px; padding: 20px; border: 1px solid #a7cbb7; border-radius: 16px; background: #edf7f0; color: #244d37; font: 14px/1.6 ui-sans-serif, system-ui, sans-serif; overflow-wrap: anywhere; scroll-margin-top: 16px; }
+.invitation-shell .rsvp-confirmation svg { width: 32px; height: 32px; flex-shrink: 0; }
+.invitation-shell .rsvp-confirmation .rsvp-confirmation-title { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
+.invitation-shell .rsvp-confirmation:focus { outline: 2px solid #244d37; outline-offset: 4px; }
 .invitation-shell :is(a, button, summary, input, select, textarea):focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .invitation-shell .template-preview-toolbar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; background: #fffffff5; backdrop-filter: blur(12px); font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; color: #334155; }
 .invitation-shell .template-preview-toolbar a { text-decoration: underline; text-underline-offset: 3px; }

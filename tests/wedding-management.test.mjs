@@ -350,6 +350,9 @@ test("personal links resolve only their wedding and restore individually selecte
   db.tables.guests.push(
     { id:"c1", wedding_id:"w1", primary_guest_id:"g1", full_name:"Primera persona", is_primary:false },
     { id:"c2", wedding_id:"w1", primary_guest_id:"g1", full_name:"Segunda persona", is_primary:false });
+  const unanswered = await getInvitationGuest(db,"w1","code");
+  assert.equal(unanswered.initialStatus,"confirmed","The default button value is not a saved confirmation");
+  assert.equal(unanswered.isConfirmed,false);
   await submitRsvp(db, { slug:"boda", invite_code:"code", status:"confirmed", seats_confirmed:99,
     companions:[{id:"c1",attending:false},{id:"c2",attending:true}] });
   assert.equal(db.tables.rsvps.find(row=>row.guest_id==="g1").seats_confirmed,2,"Server derives seats from checks");
@@ -360,6 +363,7 @@ test("personal links resolve only their wedding and restore individually selecte
   assert.equal(db.tables.rsvps.reduce((total,row)=>total+row.seats_confirmed,0),2);
   assert.equal(db.tables.guests.find(row=>row.id==="c1").full_name,"Primera persona");
   const personal = await getInvitationGuest(db,"w1","code");
+  assert.equal(personal.isConfirmed,true);
   assert.equal(personal.guest.full_name,"Invitado");
   assert.deepEqual(personal.companions.map(row=>[row.id,row.attending]),[["c1",false],["c2",true]]);
   assert.equal(await getInvitationGuest(db,"w2","code"),null);
@@ -368,8 +372,10 @@ test("personal links resolve only their wedding and restore individually selecte
   assert.equal(db.tables.guests.length,3);
   assert.ok(db.tables.rsvps.every(row=>row.status==="declined"));
   assert.ok(db.tables.rsvps.every(row=>row.seats_confirmed===0));
+  assert.equal((await getInvitationGuest(db,"w1","code")).isConfirmed,false);
   await submitRsvp(db,{slug:"boda",invite_code:"code",status:"pending",companions:[]});
   assert.ok(db.tables.rsvps.every(row=>row.status==="pending" && row.seats_confirmed===0));
+  assert.equal((await getInvitationGuest(db,"w1","code")).isConfirmed,false);
 });
 
 test("companion checks reject foreign IDs, duplicates, invalid selections and over-capacity before writing", async () => {

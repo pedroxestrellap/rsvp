@@ -18,5 +18,5 @@ const initialStatus = Astro.url.searchParams.get("status") === "declined" ? "dec
 const backPath = `/i/${wedding.slug}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
 ---
 <InvitationLayout weddingTitle={`Confirmar asistencia · ${wedding.title}`} themeId={wedding.theme_id} form>
-  <RsvpForm wedding={wedding} guest={personal?.guest} code={code} companions={personal?.companions} initialStatus={initialStatus} closed={deadlinePassed(wedding)} backPath={backPath} />
+  <RsvpForm wedding={wedding} guest={personal?.guest} code={code} companions={personal?.companions} initialStatus={initialStatus} isConfirmed={personal?.isConfirmed} closed={deadlinePassed(wedding)} backPath={backPath} />
 </InvitationLayout>

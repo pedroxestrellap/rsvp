@@ -5,6 +5,7 @@ import ClassicInvitation from "./ClassicInvitation.astro";
 import FloralRomance from "./FloralRomance.astro";
 import SedaPromesas from "./SedaPromesas.astro";
 import type { InvitationGuest, InvitationRsvp } from "../../types/invitations";
+import RsvpConfirmation from "./RsvpConfirmation.astro";
 interface Props {
   wedding: WeddingRow; rsvpPath: string; declinePath: string;
   guest?: InvitationGuest | null;
@@ -15,6 +16,7 @@ const template = getWeddingTemplate(props.wedding.theme_id);
 const views = { theme_1: ClassicInvitation, floral_romance: FloralRomance, seda_promesas: SedaPromesas };
 const View = views[template.id];
 ---
+<RsvpConfirmation confirmed={Boolean(props.guest && props.rsvp?.isConfirmed && !props.rsvp?.preview)} />
 {props.guest && <header class="invitation-recipient" data-invitation-recipient>
   <p>Una invitación especial para</p><p class="invitation-recipient-name">{props.guest.full_name}</p>
 </header>}

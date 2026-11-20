@@ -171,6 +171,15 @@ try {
     assert.equal(response.status, 200);
     const personalHtml = await response.text();
     assert.match(personalHtml, new RegExp(`data-companion-id="${companion.id}"`));
+    const bannerTag = personalHtml.match(/<aside[^>]*data-rsvp-confirmation[^>]*>/)?.[0];
+    const fieldsTag = personalHtml.match(/<div[^>]*data-rsvp-fields[^>]*>/)?.[0];
+    assert.ok(bannerTag);
+    assert.ok(fieldsTag);
+    assert.equal(/\bhidden\b/.test(bannerTag), status !== "confirmed");
+    assert.equal(/\bhidden\b/.test(fieldsTag), status === "confirmed");
+    const standalone = await fetch(`${origin}/i/${slug}/rsvp?code=${guest.invite_code}&status=declined`);
+    const standaloneHtml = await standalone.text();
+    assert.equal(/\bhidden\b/.test(standaloneHtml.match(/<div[^>]*data-rsvp-fields[^>]*>/)?.[0] ?? ""), status === "confirmed");
   }
 
   const beforeTemplate = await check(admin.from("weddings").select("*").eq("id", weddingId).single());

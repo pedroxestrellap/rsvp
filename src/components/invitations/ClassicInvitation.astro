@@ -17,4 +17,4 @@ const date = wedding.event_date ? new Date(`${wedding.event_date}T12:00:00`).toL
   {!rsvp && <InvitationActions rsvpPath={rsvpPath} declinePath={declinePath} deadline={wedding.rsvp_deadline} />}
 </header>
 <InvitationDetails wedding={wedding} />
-{rsvp && <section class="invitation-note"><h2>Confirma tu asistencia</h2><RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} /></section>}
+{rsvp && <section class="invitation-note" data-rsvp-section hidden={Boolean(guest && rsvp.isConfirmed && !rsvp.preview)}><h2>Confirma tu asistencia</h2><RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} /></section>}

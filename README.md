@@ -148,6 +148,9 @@ Comportamientos cuando faltan datos:
   El servidor calcula el total, valida la pertenencia y el cupo, y guarda el estado
   de cada acompañante en los RSVPs existentes. El total del grupo se guarda solo
   en el RSVP principal. Al volver a abrir el enlace se restaura la selección.
+  Después de guardar **Asistir**, aparece arriba un banner de asistencia confirmada
+  y se oculta el formulario. Ese estado se mantiene al recargar o volver a abrir
+  el enlace personal, también en el formulario independiente y en los tres diseños.
   Los novios pueden ver el estado individual al editar los acompañantes.
   El enlace general no ofrece un formulario de código: indica que debe abrirse
   el enlace personal. Los enlaces personales inválidos devuelven 404.

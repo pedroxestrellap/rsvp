@@ -2,21 +2,26 @@
 import type { WeddingRow } from "../../types/weddings";
 import type { InvitationGuest, InvitationCompanion } from "../../types/invitations";
 import { getRsvpSettings } from "../../lib/weddingSettings";
+import RsvpConfirmation from "./RsvpConfirmation.astro";
 interface Props {
   wedding: Pick<WeddingRow, "title" | "slug" | "settings">;
   guest?: InvitationGuest | null;
   code?: string; companions?: InvitationCompanion[]; names?: string[];
   initialStatus?: "confirmed" | "declined" | "pending";
+  isConfirmed?: boolean;
   closed?: boolean; preview?: boolean; backPath: string; embedded?: boolean;
 }
-const { wedding, guest = null, code = "", companions = [], names = [], initialStatus = "confirmed", closed = false, preview = false, backPath, embedded = false } = Astro.props;
+const { wedding, guest = null, code = "", companions = [], names = [], initialStatus = "confirmed", isConfirmed = false, closed = false, preview = false, backPath, embedded = false } = Astro.props;
+const confirmed = Boolean(guest && isConfirmed && !preview);
 const config = getRsvpSettings(wedding.settings ?? {});
 const inputClass = "w-full rounded-xl border border-slate-200 bg-white p-3 text-slate-900";
 const slots: InvitationCompanion[] = Array.from({ length: Math.max(0, (guest?.max_seats ?? 1) - 1) }, (_, i) => companions[i] ?? { full_name: names[i] ?? "", attending: false });
 ---
+{!embedded && <RsvpConfirmation confirmed={confirmed} />}
 {!embedded && <><a href={backPath} class="text-sm text-emerald-700 underline">← Ver invitación</a>
 <h1 class="mt-6 text-3xl font-semibold text-slate-900">{guest?.full_name ?? wedding.title}</h1></>}
 {!guest ? <p class="mt-6 text-slate-600" data-personal-link-required>Esta invitación es personal. Abre el enlace que te enviaron los novios para ver tu nombre y confirmar tu asistencia.</p> : <>
+  <div data-rsvp-fields hidden={confirmed}>
   <p class="mt-3 whitespace-pre-line text-slate-600">{config.intro}</p>
   {preview && <p class="mt-4 rounded-xl border border-slate-200 p-3 text-sm" role="status">Vista previa del formulario. Las respuestas de ejemplo no se guardan.</p>}
   {closed ? <p class="mt-8 rounded-xl bg-amber-50 p-4 text-amber-800">El plazo para confirmar ha terminado. Contacta con los novios.</p> : <form id="rsvpForm" data-preview={String(preview)} class="mt-8 grid max-w-xl gap-5">
@@ -45,6 +50,7 @@ const slots: InvitationCompanion[] = Array.from({ length: Math.max(0, (guest?.ma
     </div>
     <p id="result" class="text-sm text-slate-700" role="status" aria-live="polite"></p>
   </form>}
+  </div>
 </>}
 <script>
   const form = document.querySelector<HTMLFormElement>("#rsvpForm");
@@ -109,6 +115,16 @@ const slots: InvitationCompanion[] = Array.from({ length: Math.max(0, (guest?.ma
           updateFields();
         }
         result.textContent = status.value === "declined" ? "Hemos registrado que no podrás asistir. Gracias por avisar." : "¡Listo! Tu respuesta se ha guardado.";
+        if (status.value === "confirmed") {
+          const banner = document.querySelector<HTMLElement>("[data-rsvp-confirmation]");
+          if (banner) {
+            const fields = form.closest<HTMLElement>("[data-rsvp-section]") ?? form.closest<HTMLElement>("[data-rsvp-fields]") ?? form;
+            fields.hidden = true;
+            banner.hidden = false;
+            banner.focus({ preventScroll: true });
+            banner.scrollIntoView({ block: "start", behavior: "instant" });
+          }
+        }
       } catch (error) {
         result.textContent = error instanceof Error ? error.message : "No se pudo enviar. Revisa tu conexión.";
       } finally { buttons.forEach(button => button.disabled = false); }

@@ -69,8 +69,14 @@ try {
   assert.equal(await page.locator("[name=code]").count(), 0);
   assert.equal(await page.locator("select[name=status]").count(), 0);
   let requests = 0;
+  let failNext = false;
   await page.route("**/api/rsvp", async route => {
     requests++;
+    if (failNext) {
+      failNext = false;
+      await route.fulfill({ status: 400, json: { error: "No se pudo guardar la confirmación." } });
+      return;
+    }
     const body = route.request().postDataJSON();
     await route.fulfill({ json: { ok: true, companions:body.companions.map((companion,i)=>({...companion,id:companion.id || (companion.attending ? `created-${i}` : undefined)})) } });
   });
@@ -84,13 +90,21 @@ try {
   await page.goto(`${base}?form&submit`, { waitUntil: "networkidle" });
   await page.addStyleTag({ content: "astro-dev-toolbar { display: none !important; }" });
   await page.getByRole("checkbox",{name:"Segundo acompañante",exact:true}).check();
+  failNext = true;
+  await page.getByRole("button",{name:"Asistir",exact:true}).click();
+  await page.locator("#result").filter({ hasText: "No se pudo guardar" }).waitFor();
+  assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), false);
+  assert.equal(await page.locator("#rsvpForm").isVisible(), true);
   const post = page.waitForRequest("**/api/rsvp");
   await page.getByRole("button",{name:"Asistir",exact:true}).click();
   const payload = (await post).postDataJSON();
   assert.equal(payload.invite_code, "local-check");
   assert.equal(payload.seats_confirmed, 2);
   assert.deepEqual(payload.companions.map(companion=>[companion.id,companion.attending]), [["companion-one",false],["companion-two",true]]);
-  await page.locator("#result").filter({ hasText: "Tu respuesta se ha guardado" }).waitFor();
+  await page.locator("[data-rsvp-confirmation]").waitFor();
+  assert.equal(await page.locator("#rsvpForm").isVisible(), false);
+  assert.equal(await page.locator("[data-rsvp-confirmation]").evaluate(el => el === document.activeElement), true);
+  assert.ok(await page.evaluate(() => window.scrollY < 100), "Successful confirmation returns to the banner at the top");
   if (AxeBuilder) {
     const results = await new AxeBuilder({ page }).exclude("astro-dev-toolbar").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
     assert.deepEqual(results.violations.map(v => v.id), []);
@@ -99,6 +113,7 @@ try {
     await page.setViewportSize({ width, height: 900 });
     await screenshot(page.locator(".invitation-form-page"), `form-${width}`);
   }
+  await page.goto(`${base}?form&submit&status=declined`, { waitUntil: "networkidle" });
   const declinePost = page.waitForRequest("**/api/rsvp");
   await page.getByRole("button",{name:"No asistir",exact:true}).click();
   const declined = (await declinePost).postDataJSON();
@@ -106,11 +121,13 @@ try {
   assert.equal(declined.seats_confirmed,0);
   assert.ok(declined.companions.every(companion=>!companion.attending));
   await page.locator("#result").filter({hasText:"no podrás asistir"}).waitFor();
+  assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), false);
+  assert.equal(await page.locator("#rsvpForm").isVisible(), true);
   await page.goto(`${base}?form&submit&unnamed`);
   await page.getByRole("checkbox",{name:"Acompañante 2",exact:true}).check();
   await page.getByLabel("Nombre del acompañante 2 (opcional)",{exact:true}).fill("Acompañante de prueba");
   await page.getByRole("button",{name:"Asistir",exact:true}).click();
-  await page.locator("#result").filter({hasText:"Tu respuesta se ha guardado"}).waitFor();
+  await page.locator("[data-rsvp-confirmation]").waitFor();
   assert.equal(await page.locator("[data-companion-row]").nth(1).getAttribute("data-companion-id"),"created-1");
   await page.goto(`${base}?form&submit&unnamed&optional-names`);
   await page.getByRole("checkbox",{name:"Acompañante 1",exact:true}).check();
@@ -119,7 +136,33 @@ try {
   const optionalPost=page.waitForRequest("**/api/rsvp");
   await page.getByRole("button",{name:"Asistir",exact:true}).click();
   assert.equal((await optionalPost).postDataJSON().companions[0].full_name,"Nombre elegido por el invitado");
-  await page.locator("#result").filter({hasText:"Tu respuesta se ha guardado"}).waitFor();
+  await page.locator("[data-rsvp-confirmation]").waitFor();
+  for (const theme of ["classic", "", "template=seda_promesas"]) {
+    for (const width of [320, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${base}?submit&confirmed&${theme}`, { waitUntil: "networkidle" });
+      assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), true);
+      assert.equal(await page.locator("#rsvpForm").isVisible(), false);
+      assert.equal(await page.locator("[data-rsvp-section]").isVisible(), false);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    }
+    await page.goto(`${base}?submit&${theme}`, { waitUntil: "networkidle" });
+    if (theme === "") {
+      await page.locator("summary").first().click();
+      await page.locator(".floral-hero h1").waitFor({ state: "visible" });
+    }
+    await page.getByRole("button",{name:"Asistir",exact:true}).click();
+    await page.locator("[data-rsvp-confirmation]").waitFor();
+    assert.equal(await page.locator("[data-rsvp-section]").isVisible(), false);
+  }
+  await page.goto(`${base}?form&submit&confirmed&status=declined`);
+  assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), true);
+  assert.equal(await page.locator("#rsvpForm").isVisible(), false);
+  await page.reload();
+  assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), true);
+  await page.goto(`${base}?form&confirmed`);
+  assert.equal(await page.locator("[data-rsvp-confirmation]").isVisible(), false);
+  assert.equal(await page.locator("#rsvpForm").isVisible(), true, "Previews remain interactive even with confirmed sample data");
   await page.goto(`${base}?classic`);
   assert.match(await page.locator("[data-invitation-recipient]").textContent(),/Invitada de verificación/);
   assert.equal(await page.getByRole("button",{name:"Asistir",exact:true}).isVisible(),true);

@@ -4,6 +4,7 @@ export type InvitationRsvp = {
   code?: string;
   companions?: InvitationCompanion[];
   initialStatus?: "confirmed" | "declined" | "pending";
+  isConfirmed?: boolean;
   closed?: boolean;
   preview?: boolean;
 };

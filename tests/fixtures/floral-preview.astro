@@ -9,6 +9,7 @@ const empty = Astro.url.searchParams.has("empty");
 const form = Astro.url.searchParams.has("form");
 const preview = !Astro.url.searchParams.has("submit");
 const initialStatus = Astro.url.searchParams.get("status") === "declined" ? "declined" : "confirmed";
+const isConfirmed = Astro.url.searchParams.has("confirmed");
 const wedding = { id: "visual-test", workspace_id: "test", slug: "visual-test", title: "Elena y Gabriel", event_date: empty ? null : "2028-02-29", rsvp_deadline: "2028-02-01", theme_id: "floral_romance", is_published: false, created_at: null, settings: empty ? {} : {
   partner_one: "Elena", partner_two: "Gabriel",
   main_photo_url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85&fit=crop",
@@ -45,5 +46,5 @@ const guests = [
 ];
 ---
 {Astro.url.searchParams.has("guests") ? <BaseLayout title="Invitados de verificación"><main class="mx-auto max-w-5xl p-4"><GuestManager guests={(Astro.url.searchParams.has("legacy-only") ? guests.filter(guest=>guest.id==="guest-legacy") : guests) as any} weddingId={wedding.id} slug={wedding.slug} compact /></main></BaseLayout> : <InvitationLayout weddingTitle="Verificación local · Floral Romance" themeId={theme} form={form}>
-  {form ? <RsvpForm wedding={wedding} guest={guest} code="local-check" companions={companions} preview={preview} initialStatus={initialStatus} backPath="/floral-visual-check" /> : <InvitationView wedding={{...wedding,theme_id:theme}} guest={guest} rsvp={{code:"local-check",companions,preview}} rsvpPath="/floral-visual-check?form&code=local-check" declinePath="/floral-visual-check?form&code=local-check&status=declined" />}
+  {form ? <RsvpForm wedding={wedding} guest={guest} code="local-check" companions={companions} preview={preview} initialStatus={initialStatus} isConfirmed={isConfirmed} backPath="/floral-visual-check" /> : <InvitationView wedding={{...wedding,theme_id:theme}} guest={guest} rsvp={{code:"local-check",companions,preview,isConfirmed}} rsvpPath="/floral-visual-check?form&code=local-check" declinePath="/floral-visual-check?form&code=local-check&status=declined" />}
 </InvitationLayout>}

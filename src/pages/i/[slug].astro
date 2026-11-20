@@ -18,5 +18,5 @@ if (code && !personal) return new Response("El enlace de invitación no es váli
 Astro.response.headers.set("Cache-Control", "no-store");
 ---
 <InvitationLayout weddingTitle={wedding.title} themeId={wedding.theme_id}>
-  <InvitationView wedding={wedding} rsvpPath={rsvpPath} declinePath={declinePath} guest={personal?.guest} rsvp={{ code, companions: personal?.companions, initialStatus: personal?.initialStatus, closed: deadlinePassed(wedding) }} />
+  <InvitationView wedding={wedding} rsvpPath={rsvpPath} declinePath={declinePath} guest={personal?.guest} rsvp={{ code, companions: personal?.companions, initialStatus: personal?.initialStatus, isConfirmed: personal?.isConfirmed, closed: deadlinePassed(wedding) }} />
 </InvitationLayout>

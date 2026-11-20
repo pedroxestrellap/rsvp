@@ -100,7 +100,7 @@ const hasGifts = s.gifts || s.gifts_message || s.gifts_label || safeUrl(s.gifts_
     {(s.contact_name || s.contact_phone) && <p>{s.contact_name}<br />{s.contact_phone}</p>}
   </aside>}
 
-  <section class="seda-rsvp seda-oval-paper" data-seda-section="rsvp" aria-labelledby="seda-rsvp-title">
+  <section class="seda-rsvp seda-oval-paper" data-seda-section="rsvp" data-rsvp-section hidden={Boolean(guest && rsvp?.isConfirmed && !rsvp?.preview)} aria-labelledby="seda-rsvp-title">
     <h2 id="seda-rsvp-title">Confirmación</h2>
     {wedding.rsvp_deadline && <p class="seda-deadline">Confirma antes del {new Date(`${wedding.rsvp_deadline}T12:00:00`).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.</p>}
     <RsvpForm wedding={wedding} guest={guest} {...rsvp} embedded backPath={rsvpPath} />

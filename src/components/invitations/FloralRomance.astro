@@ -141,7 +141,7 @@ const hasGifts = s.gifts || s.gifts_message || s.gifts_label || safeUrl(s.gifts_
       {(s.contact_name || s.contact_phone) && <div class="floral-contact"><h3>¿Tienes alguna pregunta?</h3><p>{s.contact_name}<br />{s.contact_phone}</p></div>}
     </aside>}
 
-    <section class="floral-rsvp-callout" data-floral-section="rsvp" aria-labelledby="floral-rsvp-title">
+    <section class="floral-rsvp-callout" data-floral-section="rsvp" data-rsvp-section hidden={Boolean(guest && rsvp?.isConfirmed && !rsvp?.preview)} aria-labelledby="floral-rsvp-title">
       <FloralArt name="ornament" />
       <h2 id="floral-rsvp-title">¿Nos acompañas?</h2>
       {guest && <><p class="floral-guest-name">{guest.full_name}</p><p>Esta invitación está reservada para ti{guest.max_seats > 1 ? ` y hasta ${guest.max_seats - 1} ${guest.max_seats === 2 ? "acompañante" : "acompañantes"}` : ""}.</p></>}

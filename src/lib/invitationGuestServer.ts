@@ -22,5 +22,5 @@ export async function getInvitationGuest(supabase: SupabaseClient, weddingId: st
     return { id: row.id, full_name: row.full_name,
       attending: response?.status === "confirmed" && (saved ? saved.status === "confirmed" : index < (response.seats_confirmed ?? 1) - 1) };
   });
-  return { guest, companions, initialStatus };
+  return { guest, companions, initialStatus, isConfirmed: response?.status === "confirmed" };
 }
