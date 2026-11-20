@@ -5,8 +5,9 @@ import GuestCreateDialog from "./GuestCreateDialog.astro";
 import AdminIcon from "../ui/AdminIcon.astro";
 import { guestFilters, matchesGuest, normalizeGuestSearch } from "../../lib/guestList";
 import { formatGuestPhone } from "../../lib/guestForm";
+import { guestExportRows, type ExportRsvp } from "../../lib/guestExport";
 import "../../styles/guest-manager.css";
-interface Props { guests: (GuestRow & { rsvps?: { status: string }[] | { status: string } | null })[]; slug: string | null; weddingId: string; weddingTitle?: string | null; planner?: boolean; compact?: boolean; editingGuest?: string; }
+interface Props { guests: (GuestRow & { rsvps?: ExportRsvp[] | ExportRsvp | null })[]; slug: string | null; weddingId: string; weddingTitle?: string | null; planner?: boolean; compact?: boolean; editingGuest?: string; }
 const { guests, slug, weddingId, weddingTitle = "Nuestra boda", planner = false, compact = false, editingGuest = "" } = Astro.props;
 const primary = guests.filter(g => g.is_primary || !g.primary_guest_id);
 const filters = guestFilters(Astro.url.searchParams);
@@ -25,7 +26,7 @@ const confirmed = rows.filter(row=>row.status === "confirmed").length;
 const initials = (name: string | null) => (name ?? "").split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
 ---
 <section id="guests" class:list={["guest-manager",compact && "guest-manager-compact"]} data-guest-manager data-wedding-title={weddingTitle}>
-  <div class="guest-manager-heading"><div><span class="admin-kicker">Cada persona cuenta</span><h2>Tu lista de invitados<span class="admin-count">{primary.length}</span></h2><p>Organiza sus lugares y comparte una invitación única con cada persona.</p></div><button type="button" class="admin-button admin-button-dark" data-open-guest-dialog aria-haspopup="dialog" aria-controls="guest-create-dialog"><AdminIcon name="plus" />Agregar invitado</button></div>
+  <div class="guest-manager-heading"><div><span class="admin-kicker">Cada persona cuenta</span><h2>Tu lista de invitados<span class="admin-count">{primary.length}</span></h2><p>Organiza sus lugares y comparte una invitación única con cada persona.</p></div><div class="guest-heading-actions"><button type="button" class="admin-button admin-button-outline" data-export-guests disabled={!rows.some(row=>row.visible)} title="Descargar los invitados y acompañantes que coinciden con los filtros actuales"><AdminIcon name="download" /><span data-export-label>Exportar a Excel</span></button><button type="button" class="admin-button admin-button-dark" data-open-guest-dialog aria-haspopup="dialog" aria-controls="guest-create-dialog"><AdminIcon name="plus" />Agregar invitado</button></div></div>
   <div class="guest-summary-grid" aria-label="Resumen de invitados">
     <div class="guest-summary guest-summary-pink"><span>Invitaciones</span><strong>{primary.length}</strong><AdminIcon name="mail" /></div>
     <div class="guest-summary guest-summary-lavender"><span>Confirmadas</span><strong>{confirmed}</strong><AdminIcon name="check" /></div>
@@ -46,7 +47,7 @@ const initials = (name: string | null) => (name ?? "").split(/\s+/).filter(Boole
     {rows.map(({g,companions,status,search,hasCompanions,visible},index)=>{
       const path = slug && g.invite_code ? `/i/${slug}?code=${encodeURIComponent(g.invite_code)}` : null;
       const url = path ? new URL(path,Astro.url.origin).href : "";
-      return <article class="guest-row" data-guest-row data-guest-id={g.id} data-guest-name={g.full_name} data-guest-phone={g.phone ?? ""} data-guest-email={g.email ?? ""} data-invitation-url={url} data-search={search} data-status={status} data-has-companions={String(hasCompanions)} hidden={!visible}>
+      return <article class="guest-row" data-guest-row data-guest-id={g.id} data-guest-name={g.full_name} data-guest-phone={g.phone ?? ""} data-guest-email={g.email ?? ""} data-invitation-url={url} data-search={search} data-status={status} data-has-companions={String(hasCompanions)} data-export-rows={JSON.stringify(guestExportRows(g,companions))} hidden={!visible}>
         <div class="guest-row-heading"><label class="guest-row-select"><input type="checkbox" data-select-guest aria-label={`Seleccionar a ${g.full_name}`} /></label><span class={`guest-avatar guest-avatar-${index%4}`} aria-hidden="true">{initials(g.full_name)}</span><div class="guest-row-name"><h3>{g.full_name}</h3><p>{g.max_seats ?? 1} {(g.max_seats ?? 1) === 1 ? "lugar reservado" : "lugares reservados"}{hasCompanions && ` · ${companions.length} ${companions.length===1?"acompañante":"acompañantes"} con nombre`}</p>{(g.phone || g.email) && <p class="guest-row-contact">{[g.phone?formatGuestPhone(g.phone):null,g.email].filter(Boolean).join(" · ")}</p>}</div><span class={`guest-status guest-status-${status}`}>{status === "confirmed" ? "Confirmado" : status === "declined" ? "No asiste" : "Pendiente"}</span></div>
         <div class="guest-row-actions" data-guest-invitation>
           {path && <CopyLink path={path} label="Copiar invitación" />}

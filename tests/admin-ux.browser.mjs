@@ -1,6 +1,8 @@
 // Disposable development fixture: exercises the real guest action service with an in-memory DB.
 import assert from "node:assert/strict";
 import {readFile,writeFile,unlink} from "node:fs/promises";
+import {createRequire} from "node:module";
+const {unzipSync}=createRequire(import.meta.resolve("write-excel-file/node"))("fflate");
 if(!process.env.RSVP_PLAYWRIGHT_MODULE)throw new Error("Configura RSVP_PLAYWRIGHT_MODULE.");
 const {chromium}=await import(process.env.RSVP_PLAYWRIGHT_MODULE);
 const AxeBuilder=process.env.RSVP_AXE_MODULE?(await import(process.env.RSVP_AXE_MODULE)).default:null;
@@ -21,6 +23,34 @@ try{
   const page=await context.newPage();page.on("pageerror",error=>errors.push(error.message));
   const goto=async url=>{await page.goto(url,{waitUntil:"networkidle"});await page.addStyleTag({content:"astro-dev-toolbar{display:none!important}"});await page.evaluate(()=>document.fonts.ready);};
   const noOverflow=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"No horizontal overflow");
+  const downloadExcel=async()=>{
+    const downloading=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Exportar a Excel",exact:true}).click();
+    const download=await downloading;
+    assert.equal(download.suggestedFilename(),"invitados-elena-gabriel.xlsx");
+    assert.equal(await download.failure(),null);
+    const files=unzipSync(new Uint8Array(await readFile(await download.path())));
+    assert.ok(files["[Content_Types].xml"],"Download is an actual XLSX archive");
+    const decode=name=>files[name]?new TextDecoder().decode(files[name]):"";
+    const data=await page.evaluate(({sheet,strings})=>{
+      const parser=new DOMParser();
+      const shared=[...parser.parseFromString(strings,"application/xml").getElementsByTagName("si")].map(cell=>cell.textContent);
+      return [...parser.parseFromString(sheet,"application/xml").getElementsByTagName("row")].map(row=>{
+        const values=Array(10).fill(null);
+        for(const cell of row.getElementsByTagName("c")){
+          const column=cell.getAttribute("r").match(/[A-Z]+/)[0].split("").reduce((total,letter)=>total*26+letter.charCodeAt(0)-64,0)-1;
+          const value=cell.getElementsByTagName("v")[0]?.textContent;
+          const type=cell.getAttribute("t");
+          values[column]=type==="s"?shared[Number(value)]:type==="inlineStr"?cell.textContent:value===undefined?null:Number(value);
+          if(cell.getElementsByTagName("f").length)throw new Error("Guest text must not become a formula");
+        }
+        return values;
+      });
+    },{sheet:decode("xl/worksheets/sheet1.xml"),strings:decode("xl/sharedStrings.xml")});
+    await page.locator("[data-guest-action-status]").filter({hasText:"Excel descargado"}).waitFor();
+    assert.equal(await page.getByRole("button",{name:"Exportar a Excel",exact:true}).isEnabled(),true);
+    return data;
+  };
   const axe=async()=>{
     if(!AxeBuilder)return;
     const result=await new AxeBuilder({page}).exclude("astro-dev-toolbar").withTags(["wcag2a","wcag2aa","wcag21aa"]).analyze();
@@ -32,6 +62,7 @@ try{
     await noOverflow();
     assert.equal(await page.locator("[data-guest-row]").count(),4);
     assert.equal(await page.getByRole("button",{name:"Agregar invitado",exact:true}).isVisible(),true);
+    assert.equal(await page.getByRole("button",{name:"Exportar a Excel",exact:true}).isVisible(),true);
     await screenshot(page,`guests-${width}`);
     if(width===390 || width===1440)await axe();
     await page.getByRole("button",{name:"Agregar invitado",exact:true}).click();
@@ -141,6 +172,26 @@ try{
   console.log("PASS guest navigation and direct template catalogue with thumbnails, zoom, wedding selection and existing application endpoint on mobile and desktop");
   await page.setViewportSize({width:390,height:900});
   await goto(`${base}?reset=1`);
+  const fullExport=await downloadExcel();
+  assert.deepEqual(fullExport[0],["Nombre","Tipo","Invitado principal","Teléfono","Email","Estado RSVP","Cupo de la invitación","Personas confirmadas (grupo)","Restricciones alimentarias","Mensaje para los novios"]);
+  assert.deepEqual(fullExport.slice(1).map(row=>row[0]),["Camila Rosario","Andrés Rosario","Mateo Hernández","Lucía de la Cruz","Rafael Martínez"]);
+  assert.equal(fullExport[1][3],"+18095550123","Phone retains its plus sign and text type");
+  assert.equal(fullExport[1][7],2);
+  assert.deepEqual(fullExport[2].slice(1,3),["Acompañante","Camila Rosario"]);
+  assert.equal(fullExport[2][6],null);
+  assert.equal(fullExport[2][7],null,"Companions do not duplicate the group's confirmed total");
+  await page.getByLabel("Buscar invitados",{exact:true}).fill("Andrés");
+  const filteredExport=await downloadExcel();
+  assert.deepEqual(filteredExport.slice(1).map(row=>row[0]),["Camila Rosario","Andrés Rosario"]);
+  await page.getByLabel("Buscar invitados",{exact:true}).fill("no existe esta persona");
+  assert.equal(await page.getByRole("button",{name:"Exportar a Excel",exact:true}).isDisabled(),true);
+  await page.getByLabel("Buscar invitados",{exact:true}).fill("");
+  await page.locator("[data-guest-status]").selectOption("declined");
+  const declinedExport=await downloadExcel();
+  assert.equal(declinedExport.length,2);
+  assert.deepEqual(declinedExport[1].slice(5,8),["No asiste",2,0]);
+  await page.locator("[data-guest-status]").selectOption("all");
+  console.log("PASS actual XLSX download, accented names, text phones, companions, group totals, active filters and empty results");
   await page.getByRole("button",{name:"Agregar invitado",exact:true}).click();
   let modal=page.getByRole("dialog",{name:"Agregar invitado",exact:true});
   let posts=0;const watch=request=>{if(request.method()==="POST" && request.url().includes("admin-visual-check"))posts++;};page.on("request",watch);

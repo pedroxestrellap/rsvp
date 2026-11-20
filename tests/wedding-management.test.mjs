@@ -18,6 +18,7 @@ const { guestName, guestEmail, guestPhone, formatGuestPhone } = await vite.ssrLo
 const { getDashboardStats } = await vite.ssrLoadModule("/src/lib/dashboardData.ts");
 const { getDashboardPageData } = await vite.ssrLoadModule("/src/lib/dashboardPageData.ts");
 const { weddingSection, weddingSectionPath, singleWeddingSectionPath } = await vite.ssrLoadModule("/src/lib/nav.ts");
+const { guestExportRows, guestExportSheet } = await vite.ssrLoadModule("/src/lib/guestExport.ts");
 
 const form = (values) => {
   const data = new FormData();
@@ -125,6 +126,21 @@ test("guest search handles accents and combines actual RSVP and companion filter
   assert.ok(!matchesGuest(search, "pending", true, guestFilters(new URLSearchParams("q=maria&guest_status=confirmed"))));
   assert.ok(!matchesGuest(search, "confirmed", true, guestFilters(new URLSearchParams("companions=without"))));
   assert.equal(guestFilters(new URLSearchParams("guest_status=invalid")).status, "all");
+});
+
+test("Excel export preserves contacts and literal guest text while counting group seats only once", () => {
+  const principal={full_name:"María & José",phone:"+18095550123",email:"maria@example.com",max_seats:3,
+    rsvps:[{status:"confirmed",seats_confirmed:2,dietary:"Sin nueces",message:'=HYPERLINK("https://example.com")'}]};
+  const companion={full_name:"Lucía Pérez",phone:null,email:null,max_seats:1,rsvps:{status:"declined",seats_confirmed:0}};
+  const rows=guestExportRows(principal,[companion]);
+  assert.deepEqual(rows[0],["María & José","Principal","María & José","+18095550123","maria@example.com","Confirmado",3,2,"Sin nueces",'=HYPERLINK("https://example.com")']);
+  assert.deepEqual(rows[1],["Lucía Pérez","Acompañante","María & José","","","No asiste",null,null,"",""]);
+  const sheet=guestExportSheet(rows);
+  assert.equal(sheet[1][3].type,String);
+  assert.equal(sheet[1][9].type,String,"Messages are literal strings, never formulas");
+  assert.equal(sheet[1][7].type,Number);
+  assert.equal(sheet[2][7],null);
+  assert.equal(guestExportRows({...principal,rsvps:null},[])[0][5],"Pendiente");
 });
 
 test("guest and template navigation has distinct entry points and preserves an open wedding",()=>{

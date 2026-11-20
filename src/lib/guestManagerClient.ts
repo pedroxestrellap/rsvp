@@ -1,5 +1,6 @@
 import { matchesGuest } from "./guestList";
 import { guestName, guestEmail, guestPhone, formatGuestPhone } from "./guestForm";
+import { guestExportSheet, guestExportOptions, guestExportFilename, type GuestExportRow } from "./guestExport";
 
 document.querySelectorAll<HTMLElement>("[data-guest-manager]").forEach(root => {
   const search = root.querySelector<HTMLInputElement>("[data-guest-search]")!;
@@ -10,6 +11,9 @@ document.querySelectorAll<HTMLElement>("[data-guest-manager]").forEach(root => {
   const selectAll = root.querySelector<HTMLElement>("[data-select-all]")!;
   const bulk = root.querySelector<HTMLElement>("[data-bulk-actions]")!;
   const feedback = root.querySelector<HTMLElement>("[data-guest-action-status]")!;
+  const exportButton = root.querySelector<HTMLButtonElement>("[data-export-guests]")!;
+  const exportLabel = exportButton.querySelector<HTMLElement>("[data-export-label]")!;
+  let exporting = false;
   const dialog = root.querySelector<HTMLDialogElement>("[data-share-dialog]")!;
   const shareText = dialog.querySelector<HTMLTextAreaElement>("[data-share-text]")!;
   const selected = () => rows.filter(row=>row.querySelector<HTMLInputElement>("[data-select-guest]")!.checked);
@@ -28,6 +32,7 @@ document.querySelectorAll<HTMLElement>("[data-guest-manager]").forEach(root => {
     const filters={q:search.value,status:status.value,companions:companions.value};
     rows.forEach(row=>row.hidden=!matchesGuest(row.dataset.search??"",row.dataset.status??"pending",row.dataset.hasCompanions==="true",filters));
     const count=rows.filter(row=>!row.hidden).length;
+    exportButton.disabled=exporting || count===0;
     root.querySelector("[data-guest-count]")!.textContent=`Mostrando ${count} de ${rows.length} invitaciones`;
     (root.querySelector("[data-guest-empty]") as HTMLElement).hidden=count>0 || rows.length===0;
     (root.querySelector("[data-guest-list]") as HTMLElement).hidden=count===0;
@@ -52,6 +57,21 @@ document.querySelectorAll<HTMLElement>("[data-guest-manager]").forEach(root => {
   selectAll.addEventListener("click",()=>{rows.forEach(row=>row.querySelector<HTMLInputElement>("[data-select-guest]")!.checked=true);selection();});
   root.querySelector("[data-clear-selection]")!.addEventListener("click",()=>{rows.forEach(row=>row.querySelector<HTMLInputElement>("[data-select-guest]")!.checked=false);selection();});
   selection();
+
+  exportButton.addEventListener("click",async()=>{
+    if(exporting)return;
+    const visible=rows.filter(row=>!row.hidden);
+    if(!visible.length)return;
+    exporting=true;exportButton.disabled=true;exportButton.setAttribute("aria-busy","true");exportLabel.textContent="Exportando…";
+    announce("Preparando el archivo de Excel…");
+    try{
+      const data=visible.flatMap(row=>JSON.parse(row.dataset.exportRows!) as GuestExportRow[]);
+      const {default:writeExcelFile}=await import("write-excel-file/browser");
+      await writeExcelFile(guestExportSheet(data),guestExportOptions).toFile(guestExportFilename(root.dataset.weddingTitle || "Nuestra boda"));
+      announce(`Excel descargado: ${visible.length} ${visible.length===1?"invitación":"invitaciones"} y ${data.length} ${data.length===1?"persona":"personas"}, incluidos sus acompañantes.`);
+    }catch{announce("No se pudo exportar el listado. Inténtalo de nuevo.");}
+    finally{exporting=false;exportButton.disabled=!rows.some(row=>!row.hidden);exportButton.removeAttribute("aria-busy");exportLabel.textContent="Exportar a Excel";}
+  });
 
   const ensureLink = async (row:HTMLElement) => {
     if(row.dataset.invitationUrl)return row.dataset.invitationUrl;

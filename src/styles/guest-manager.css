@@ -2,6 +2,7 @@
 .guest-manager { --admin-text:#232327; --admin-muted:#6c6870; --admin-line:#e9e4e4; --admin-pink:#f6d4d6; --admin-lavender:#e1daf5; --admin-sage:#d8e8dc; color:var(--admin-text); font:400 14px/1.5 "DM Sans",ui-sans-serif,system-ui,sans-serif; display:grid; gap:22px; min-width:0; }
 .guest-manager :is(button,a,input,select,textarea,summary):focus-visible, :is(.guest-create-dialog,.guest-share-dialog) :is(button,a,input,select,textarea):focus-visible { outline:2px solid #554462; outline-offset:3px; }
 .guest-manager-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; }
+.guest-heading-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .guest-manager-heading h2 { display:flex; align-items:center; gap:12px; margin:6px 0 7px; font-size:28px; font-weight:600; letter-spacing:-.04em; line-height:1.2; }
 .guest-manager-heading p { font-size:13px; color:var(--admin-muted); max-width:500px; }
 .guest-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }

@@ -41,6 +41,10 @@ Para generar la versión de producción, ejecuta `npm run build`.
   del filtro. Las acciones por lote son **Copiar enlaces** y **Compartir**; se
   preparan enlaces personales distintos y se generan los que falten para invitados
   antiguos. **Limpiar selección** quita todas las marcas.
+- **Exportar a Excel** descarga un `.xlsx` con una fila por invitado y acompañante
+  con nombre, contactos, estado RSVP, restricciones alimentarias y mensaje. El cupo
+  y el total confirmado del grupo aparecen solo en el principal. Respeta los filtros
+  activos; sin filtros exporta toda la lista. Está disponible para planner y novios.
 - La información y las preguntas configuradas se muestran en `/i/:slug` y en su
   formulario de confirmación. Cambiar el título conserva el enlace de la boda.
 
